@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BinSight - Surveillance Intelligente des Poubelles Publiques</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    <style>
+        #map { height: 400px; }
+        .file-upload {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            border: 2px dashed #ccc;
+            border-radius: 0.5rem;
+            transition: all 0.3s;
+        }
+        .file-upload:hover {
+            border-color: #4ade80;
+            background-color: #f0fdf4;
+        }
+        .file-upload.dragover {
+            border-color: #4ade80;
+            background-color: #f0fdf4;
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+        .status-empty { background-color: #4ade80; }
+        .status-full { 
+            background-color: #ef4444;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="bg-green-600 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-6 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-trash-alt text-2xl"></i>
+                <h1 class="text-2xl font-bold">BinSight</h1>
+            </div>
+            <nav class="hidden md:flex space-x-6">
+                <a href="#" class="hover:text-green-200 font-medium">Accueil</a>
+                <a href="#" class="hover:text-green-200 font-medium">Signalements</a>
+                <a href="#" class="hover:text-green-200 font-medium">Statistiques</a>
+                <a href="#" class="hover:text-green-200 font-medium">À propos</a>
+            </nav>
+            <div class="flex items-center space-x-4">
+                <button class="bg-green-700 hover:bg-green-800 px-4 py-2 rounded-lg font-medium transition">
+                    <i class="fas fa-user mr-2"></i>Connexion
+                </button>
+                <button class="md:hidden text-2xl" id="mobile-menu-button">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+        </div>
+        <!-- Mobile menu -->
+        <div class="md:hidden hidden bg-green-700 px-4 py-2" id="mobile-menu">
+            <a href="#" class="block py-2 hover:text-green-200">Accueil</a>
+            <a href="#" class="block py-2 hover:text-green-200">Signalements</a>
+            <a href="#" class="block py-2 hover:text-green-200">Statistiques</a>
+            <a href="#" class="block py-2 hover:text-green-200">À propos</a>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="bg-gradient-to-r from-green-500 to-green-700 text-white py-16">
+        <div class="container mx-auto px-4 text-center">
+            <h2 class="text-4xl font-bold mb-4">Surveillance Intelligente des Poubelles Publiques</h2>
+            <p class="text-xl mb-8 max-w-3xl mx-auto">
+                Une solution innovante pour détecter l'état des poubelles et améliorer la gestion des déchets urbains
+            </p>
+            <div class="flex flex-col md:flex-row justify-center gap-4">
+                <button class="bg-white text-green-700 hover:bg-gray-100 px-6 py-3 rounded-lg font-bold text-lg transition shadow-lg">
+                    <i class="fas fa-upload mr-2"></i>Signaler une poubelle
+                </button>
+                <button class="bg-transparent border-2 border-white hover:bg-white hover:text-green-700 px-6 py-3 rounded-lg font-bold text-lg transition">
+                    <i class="fas fa-map-marked-alt mr-2"></i>Voir la carte
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-12">
+        <!-- Upload Section -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 text-center">Signaler une poubelle</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="file-upload" id="drop-area">
+                    <i class="fas fa-cloud-upload-alt text-5xl text-green-500 mb-4"></i>
+                    <h3 class="text-xl font-semibold mb-2">Déposez votre image ici</h3>
+                    <p class="text-gray-500 mb-4">ou</p>
+                    <input type="file" id="file-input" accept="image/*" class="hidden">
+                    <label for="file-input" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg cursor-pointer transition">
+                        <i class="fas fa-folder-open mr-2"></i>Parcourir les fichiers
+                    </label>
+                    <p class="text-sm text-gray-500 mt-4">Formats supportés: JPG, PNG, JPEG</p>
+                </div>
+                <div>
+                    <h3 class="text-xl font-semibold mb-4">Ajouter des détails</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-gray-700 mb-2">Localisation</label>
+                            <input type="text" id="location-input" placeholder="Adresse ou coordonnées GPS" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 mb-2">Type de poubelle</label>
+                            <select id="bin-type-select" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                                <option>Sélectionnez un type</option>
+                                <option>Poubelle standard</option>
+                                <option>Poubelle de tri</option>
+                                <option>Conteneur</option>
+                                <option>Autre</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 mb-2">État de la poubelle</label>
+                            <select id="status-select" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                                <option value="">Laissez l'IA décider</option>
+                                <option value="pleine">Pleine</option>
+                                <option value="vide">Vide</option>
+                            </select>
+                            <p class="text-sm text-gray-500 mt-1">Si vous ne sélectionnez rien, l'IA analysera automatiquement l'image</p>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 mb-2">Commentaire (optionnel)</label>
+                            <textarea id="comment-textarea" rows="3" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Ajoutez des détails supplémentaires..."></textarea>
+                        </div>
+                        <button id="submit-btn" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition w-full">
+                            <i class="fas fa-paper-plane mr-2"></i>Envoyer le signalement
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Map Section -->
+        <section class="mb-16">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-bold">Cartographie des poubelles</h2>
+                <div class="flex space-x-2">
+                    <button class="bg-green-600 text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-filter mr-2"></i>Filtrer
+                    </button>
+                    <button class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg transition" onclick="loadMapData()">
+                        <i class="fas fa-sync-alt mr-2"></i>Actualiser
+                    </button>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-lg p-4">
+                <div id="map" class="rounded-lg"></div>
+                <div class="flex justify-center mt-4 space-x-6">
+                    <div class="flex items-center">
+                        <span class="status-indicator status-empty"></span>
+                        <span>Vide</span>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="status-indicator status-full"></span>
+                        <span>Pleine</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stats Section -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 text-center">Statistiques et analyses</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500">Signalements aujourd'hui</p>
+                            <h3 class="text-3xl font-bold mt-2">0</h3>
+                        </div>
+                        <div class="bg-green-100 p-3 rounded-full">
+                            <i class="fas fa-upload text-green-600 text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <p class="text-green-600 font-medium">
+                            <i class="fas fa-arrow-up mr-1"></i>En temps réel
+                        </p>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500">Poubelles pleines</p>
+                            <h3 class="text-3xl font-bold mt-2">0</h3>
+                        </div>
+                        <div class="bg-red-100 p-3 rounded-full">
+                            <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <p class="text-red-600 font-medium">
+                            <i class="fas fa-arrow-up mr-1"></i>Surveillance active
+                        </p>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500">Taux de précision</p>
+                            <h3 class="text-3xl font-bold mt-2">0%</h3>
+                        </div>
+                        <div class="bg-blue-100 p-3 rounded-full">
+                            <i class="fas fa-brain text-blue-600 text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <p class="text-blue-600 font-medium">
+                            <i class="fas fa-arrow-up mr-1"></i>IA en apprentissage
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <canvas id="statsChart" height="300"></canvas>
+            </div>
+        </section>
+
+        <!-- Recent Reports -->
+        <section>
+            <h2 class="text-3xl font-bold mb-6">Derniers signalements</h2>
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Localisation</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <!-- Les signalements seront chargés dynamiquement -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="bg-gray-50 px-6 py-3 text-center text-gray-500" id="no-reports" style="display: none;">
+                    Aucun signalement pour le moment
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-12">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <h3 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fas fa-trash-alt mr-2"></i> BinSight
+                    </h3>
+                    <p class="text-gray-400">
+                        Une solution innovante pour améliorer la gestion des déchets urbains grâce à l'intelligence artificielle.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">Liens rapides</h4>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">Accueil</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">Signalements</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">Statistiques</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">À propos</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">Ressources</h4>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">Documentation</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">API</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">FAQ</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">Contact</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">Newsletter</h4>
+                    <p class="text-gray-400 mb-4">
+                        Abonnez-vous pour recevoir les dernières actualités et mises à jour.
+                    </p>
+                    <div class="flex">
+                        <input type="email" placeholder="Votre email" class="px-4 py-2 rounded-l-lg w-full focus:outline-none text-gray-800">
+                        <button class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-r-lg transition">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
+                <p class="text-gray-400 mb-4 md:mb-0">
+                    © 2023 BinSight. Tous droits réservés.
+                </p>
+                <div class="flex space-x-6">
+                    <a href="#" class="text-gray-400 hover:text-white transition">
+                        <i class="fab fa-facebook-f"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white transition">
+                        <i class="fab fa-twitter"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white transition">
+                        <i class="fab fa-instagram"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white transition">
+                        <i class="fab fa-linkedin-in"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+<script>
+let poubelles = [];
+let currentImageId = null;
+let map;
+
+// Mobile menu toggle
+document.getElementById('mobile-menu-button').addEventListener('click', function() {
+    const menu = document.getElementById('mobile-menu');
+    menu.classList.toggle('hidden');
+});
+
+// File upload drag and drop
+const dropArea = document.getElementById('drop-area');
+const fileInput = document.getElementById('file-input');
+
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, preventDefaults, false);
+});
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+['dragenter', 'dragover'].forEach(eventName => {
+    dropArea.addEventListener(eventName, highlight, false);
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, unhighlight, false);
+});
+
+function highlight() {
+    dropArea.classList.add('dragover');
+}
+
+function unhighlight() {
+    dropArea.classList.remove('dragover');
+}
+
+dropArea.addEventListener('drop', handleDrop, false);
+
+function handleDrop(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    handleFiles(files);
+}
+
+fileInput.addEventListener('change', function() {
+    handleFiles(this.files);
+});
+
+// Fonction handleFiles connectée au backend avec support user_annotation
+function handleFiles(files) {
+    if (files.length) {
+        const file = files[0];
+        if (file.type.startsWith('image/')) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('location', document.getElementById('location-input').value);
+            formData.append('bin_type', document.getElementById('bin-type-select').value);
+            formData.append('comment', document.getElementById('comment-textarea').value);
+            formData.append('user_annotation', document.getElementById('status-select').value);
+            
+            // Afficher un indicateur de chargement
+            dropArea.innerHTML = `
+                <i class="fas fa-spinner fa-spin text-5xl text-green-500 mb-4"></i>
+                <h3 class="text-xl font-semibold mb-2">Analyse en cours...</h3>
+                <p class="text-gray-500">Extraction des caractéristiques et classification</p>
+            `;
+            
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Réponse serveur:', data);
+                
+                // Restaurer l'interface d'upload
+                resetUploadArea();
+                
+                if (data.success) {
+                    // Afficher les résultats de l'analyse
+                    showAnalysisResults(data);
+                    
+                    // Rafraîchir les données
+                    loadStats();
+                    loadRecentReports();
+                    loadMapData();
+                    
+                    // Réinitialiser le formulaire
+                    resetForm();
+                    
+                    // Message de succès
+                    showSuccessMessage(data.message + (data.confidence ? ` (Confiance: ${data.confidence})` : ''));
+                } else {
+                    showErrorMessage('Erreur: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Erreur upload:', error);
+                resetUploadArea();
+                showErrorMessage('Erreur lors de l\'upload: ' + error.message);
+            });
+        } else {
+            showErrorMessage('Veuillez sélectionner une image valide (JPG, PNG, JPEG).');
+        }
+    }
+}
+
+// Fonction pour réinitialiser la zone d'upload
+function resetUploadArea() {
+    dropArea.innerHTML = `
+        <i class="fas fa-cloud-upload-alt text-5xl text-green-500 mb-4"></i>
+        <h3 class="text-xl font-semibold mb-2">Déposez votre image ici</h3>
+        <p class="text-gray-500 mb-4">ou</p>
+        <input type="file" id="file-input" accept="image/*" class="hidden">
+        <label for="file-input" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg cursor-pointer transition">
+            <i class="fas fa-folder-open mr-2"></i>Parcourir les fichiers
+        </label>
+        <p class="text-sm text-gray-500 mt-4">Formats supportés: JPG, PNG, JPEG</p>
+    `;
+    
+    // Réattacher l'event listener au nouveau input
+    const newFileInput = document.getElementById('file-input');
+    newFileInput.addEventListener('change', function() {
+        handleFiles(this.files);
+    });
+}
+
+// Fonction pour réinitialiser le formulaire
+function resetForm() {
+    document.getElementById('location-input').value = '';
+    document.getElementById('bin-type-select').selectedIndex = 0;
+    document.getElementById('status-select').selectedIndex = 0;
+    document.getElementById('comment-textarea').value = '';
+}
+
+// Fonction pour afficher un message de succès
+function showSuccessMessage(message) {
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <i class="fas fa-check-circle mr-2"></i>
+            <span>${message}</span>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    document.body.appendChild(notification);
+    
+    // Supprimer automatiquement après 5 secondes
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Fonction pour afficher un message d'erreur
+function showErrorMessage(message) {
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            <span>${message}</span>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    document.body.appendChild(notification);
+    
+    // Supprimer automatiquement après 5 secondes
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Fonction pour afficher les résultats d'analyse
+function showAnalysisResults(data) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.innerHTML = `
+        <div class="bg-white p-6 rounded-lg max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold mb-4">Résultats de l'analyse</h3>
+            <img src="${data.image_url}" class="w-full h-48 object-cover rounded mb-4" alt="Image analysée">
+            <div class="space-y-2">
+                <p><strong>Classification:</strong> Poubelle ${data.classification}</p>
+                <p><strong>Confiance:</strong> ${data.confidence}</p>
+                <p><strong>Source:</strong> ${data.is_user_annotation ? 'Annotation utilisateur' : 'Intelligence artificielle'}</p>
+                <p><strong>Dimensions:</strong> ${data.features.width}x${data.features.height}px</p>
+                <p><strong>Taille:</strong> ${(data.features.file_size / 1024).toFixed(1)} Ko</p>
+                <p><strong>Luminosité:</strong> ${data.features.brightness.toFixed(1)}</p>
+            </div>
+            ${!data.is_user_annotation ? `
+            <div class="mt-6 flex space-x-2">
+                <button onclick="annotateImage(${data.image_id}, 'pleine')" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                    Corriger: Pleine
+                </button>
+                <button onclick="annotateImage(${data.image_id}, 'vide')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                    Corriger: Vide
+                </button>
+                <button onclick="closeModal(this)" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+                    Fermer
+                </button>
+            </div>
+            ` : `
+            <div class="mt-6">
+                <button onclick="closeModal(this)" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full">
+                    Fermer
+                </button>
+            </div>
+            `}
+        </div>
+    `;
+    document.body.appendChild(modal);
+    currentImageId = data.image_id;
+}
+
+// Fonction pour annoter une image
+function annotateImage(imageId, annotation) {
+    fetch(`/annotate/${imageId}/${annotation}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showSuccessMessage(data.message);
+                loadStats();
+                loadRecentReports();
+                loadMapData();
+                // Fermer la modal après annotation
+                const modal = document.querySelector('.fixed.inset-0');
+                if (modal) modal.remove();
+            } else {
+                showErrorMessage('Erreur: ' + data.message);
+            }
+        });
+}
+
+function closeModal(button) {
+    const modal = button.closest('.fixed');
+    modal.remove();
+}
+
+// Charger la carte avec des données réelles
+function initMap() {
+    map = L.map('map').setView([48.8566, 2.3522], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    loadMapData();
+}
+
+// Fonction pour charger les données de la carte
+function loadMapData() {
+    fetch('/api/poubelles')
+        .then(response => response.json())
+        .then(data => {
+            // Effacer les marqueurs existants
+            map.eachLayer(layer => {
+                if (layer instanceof L.Marker) {
+                    map.removeLayer(layer);
+                }
+            });
+            
+            poubelles = data;
+            
+            const greenIcon = L.divIcon({
+                html: '<div style="background-color: #4ade80; width: 12px; height: 12px; border-radius: 50%;"></div>',
+                className: '',
+                iconSize: [12, 12]
+            });
+
+            const redIcon = L.divIcon({
+                html: '<div style="background-color: #ef4444; width: 12px; height: 12px; border-radius: 50%; animation: pulse 2s infinite;"></div>',
+                className: '',
+                iconSize: [12, 12]
+            });
+            
+            poubelles.forEach(poubelle => {
+                const icon = poubelle.status === 'pleine' ? redIcon : greenIcon;
+                const marker = L.marker([poubelle.lat, poubelle.lng], { icon }).addTo(map);
+                
+                const popupContent = `
+                    <div class="p-2">
+                        <h3 class="font-bold mb-2">${poubelle.location}</h3>
+                        <p class="mb-1">Statut: <span class="font-medium ${poubelle.status === 'pleine' ? 'text-red-600' : 'text-green-600'}">${poubelle.status}</span></p>
+                        <p class="mb-1">Signalé il y a: ${poubelle.time}</p>
+                        <p class="mb-1">Confiance: ${(poubelle.confidence * 100).toFixed(1)}%</p>
+                        <div class="mt-2">
+                            <button class="bg-green-600 text-white px-2 py-1 rounded text-sm hover:bg-green-700 transition" onclick="viewImageDetails(${poubelle.id})">
+                                <i class="fas fa-eye mr-1"></i>Voir
+                            </button>
+                            <button class="bg-blue-600 text-white px-2 py-1 rounded text-sm hover:bg-blue-700 transition ml-2" onclick="handleAction('process', '${poubelle.location}')">
+                                <i class="fas fa-check mr-1"></i>Traiter
+                            </button>
+                        </div>
+                    </div>
+                `;
+                marker.bindPopup(popupContent);
+            });
+            
+            if (poubelles.length > 0) {
+                const bounds = poubelles.map(p => [p.lat, p.lng]);
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
+        })
+        .catch(error => console.error('Erreur chargement carte:', error));
+}
+
+// Fonction pour voir les détails d'une image
+function viewImageDetails(imageId) {
+    fetch(`/api/image/${imageId}`)
+        .then(response => response.json())
+        .then(data => {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-white p-6 rounded-lg max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
+                    <h3 class="text-xl font-bold mb-4">Détails de l'image</h3>
+                    <img src="${data.image_url}" class="w-full h-64 object-cover rounded mb-4" alt="Image">
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <p><strong>Classification auto:</strong> ${data.auto_classification || 'Aucune'}</p>
+                            <p><strong>Annotation manuelle:</strong> ${data.manual_annotation || 'Aucune'}</p>
+                            <p><strong>Annotation utilisateur:</strong> ${data.user_annotation || 'Aucune'}</p>
+                            <p><strong>Confiance:</strong> ${(data.confidence * 100).toFixed(1)}%</p>
+                            <p><strong>Localisation:</strong> ${data.location || 'Non spécifiée'}</p>
+                            <p><strong>Type:</strong> ${data.bin_type || 'Standard'}</p>
+                            <p><strong>Date:</strong> ${data.upload_date}</p>
+                        </div>
+                        <div>
+                            <p><strong>Taille fichier:</strong> ${(data.file_size / 1024).toFixed(1)} Ko</p>
+                            <p><strong>Dimensions:</strong> ${data.width}x${data.height}px</p>
+                            <p><strong>Luminosité:</strong> ${data.brightness.toFixed(1)}</p>
+                            <p><strong>Contraste:</strong> ${data.contrast_level.toFixed(1)}</p>
+                            <p><strong>Couleur moyenne:</strong> RGB(${data.avg_red.toFixed(0)}, ${data.avg_green.toFixed(0)}, ${data.avg_blue.toFixed(0)})</p>
+                            <p><strong>Densité contours:</strong> ${(data.edge_density * 100).toFixed(1)}%</p>
+                        </div>
+                    </div>
+                    ${data.comment ? `<p class="mt-4"><strong>Commentaire:</strong> ${data.comment}</p>` : ''}
+                    <div class="mt-6 flex space-x-2">
+                        <button onclick="annotateImage(${data.id}, 'pleine')" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                            Annoter: Pleine
+                        </button>
+                        <button onclick="annotateImage(${data.id}, 'vide')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                            Annoter: Vide
+                        </button>
+                        <button onclick="closeModal(this)" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+                            Fermer
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        })
+        .catch(error => console.error('Erreur détails image:', error));
+}
+
+function handleAction(action, location) {
+    if (action === 'view') {
+        showSuccessMessage(`Affichage des détails pour la poubelle à ${location}`);
+    } else if (action === 'process') {
+        showSuccessMessage(`Traitement de la poubelle à ${location}`);
+    }
+}
+
+// Charger les signalements récents depuis l'API
+function loadRecentReports() {
+    fetch('/api/recent_reports')
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.querySelector("section table tbody");
+            const noReports = document.getElementById('no-reports');
+            
+            tbody.innerHTML = "";
+
+            if (data.length === 0) {
+                noReports.style.display = 'block';
+            } else {
+                noReports.style.display = 'none';
+                data.forEach((report, index) => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex-shrink-0 h-10 w-10">
+                                <img class="h-10 w-10 rounded-full object-cover" 
+                                     src="${report.image_url || `https://source.unsplash.com/50x50/?trash,bin&sig=${index}`}" 
+                                     alt="">
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">${report.location}</div>
+                            <div class="text-sm text-gray-500">${report.bin_type}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="status-indicator ${report.status === 'pleine' ? 'status-full' : 'status-empty'}"></span>
+                            <span class="text-sm font-medium ${report.status === 'pleine' ? 'text-red-600' : 'text-green-600'}">${report.status.charAt(0).toUpperCase() + report.status.slice(1)}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${report.date}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button onclick="viewImageDetails(${report.id})" class="text-green-600 hover:text-green-900 mr-3">Voir</button>
+                            <button onclick="handleAction('process', '${report.location}')" class="text-blue-600 hover:text-blue-900">Traiter</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+        })
+        .catch(error => console.error('Erreur chargement signalements:', error));
+}
+
+// Charger les statistiques depuis l'API
+function loadStats() {
+    fetch('/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            // Mettre à jour les statistiques dans l'interface
+            const statsElements = document.querySelectorAll('.text-3xl.font-bold');
+            if (statsElements[0]) statsElements[0].textContent = data.today_uploads;
+            if (statsElements[1]) statsElements[1].textContent = data.full_bins;
+            if (statsElements[2]) statsElements[2].textContent = data.accuracy + '%';
+            
+            // Mettre à jour le graphique avec les données réelles
+            updateChart(data.monthly_data);
+        })
+        .catch(error => console.error('Erreur chargement stats:', error));
+}
+
+// Mettre à jour le graphique avec des données réelles
+function updateChart(monthlyData) {
+    if (window.statsChart) {
+        // Préparer les données pour Chart.js
+        const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+        const emptyData = new Array(12).fill(0);
+        const fullData = new Array(12).fill(0);
+        
+        monthlyData.forEach(item => {
+            const monthIndex = parseInt(item[0]) - 1; // item[0] est le mois
+            emptyData[monthIndex] = item[2]; // item[2] est empty
+            fullData[monthIndex] = item[3];  // item[3] est full
+        });
+        
+        window.statsChart.data.datasets[0].data = emptyData;
+        window.statsChart.data.datasets[1].data = fullData;
+        window.statsChart.update();
+    }
+}
+
+// Initialiser le graphique Chart.js
+function initChart() {
+    const ctx = document.getElementById('statsChart').getContext('2d');
+    window.statsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'],
+            datasets: [
+                {
+                    label: 'Poubelles vides',
+                    data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    borderColor: '#4ade80',
+                    backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                    tension: 0.3,
+                    fill: true
+                },
+                {
+                    label: 'Poubelles pleines',
+                    data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    tension: 0.3,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Évolution des signalements par mois',
+                    font: {
+                        size: 16
+                    }
+                },
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Nombre de signalements'
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Initialisation au chargement de la page
+document.addEventListener('DOMContentLoaded', () => {
+    initMap();
+    initChart();
+    loadStats();
+    loadRecentReports();
+    
+    // Event listener pour le bouton submit
+    document.getElementById('submit-btn').addEventListener('click', function(e) {
+        e.preventDefault();
+        const fileInput = document.getElementById('file-input');
+        if (fileInput.files.length > 0) {
+            handleFiles(fileInput.files);
+        } else {
+            showErrorMessage('Veuillez d\'abord sélectionner une image.');
+        }
+    });
+    
+    // Actualiser les données toutes les 30 secondes
+    setInterval(() => {
+        loadStats();
+        loadRecentReports();
+    }, 30000);
+});
+</script>
+
+</body>
+</html>
