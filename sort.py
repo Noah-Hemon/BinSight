@@ -79,4 +79,8 @@ def api_label():
     return jsonify({'status': 'ok'})
 
 if __name__ == '__main__':
+    # Reset CSV at each run
+    with open(CSV_FILE, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(['filename', 'width', 'height', 'filesize', 'dominant_color', 'label'])
     app.run(debug=True)
