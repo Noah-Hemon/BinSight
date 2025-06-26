@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Tri des images</title>
+    <style>
+        body { font-family: Arial; text-align: center; }
+        img { max-width: 80vw; max-height: 60vh; margin: 20px 0; }
+        .color-box { display: inline-block; width: 40px; height: 40px; border: 1px solid #333; vertical-align: middle; }
+        .info { margin: 10px 0; }
+        button { font-size: 1.2em; margin: 0 20px; padding: 10px 30px; }
+    </style>
+</head>
+<body>
+    <h2 id="progress"></h2>
+    <div id="image-container"></div>
+    <div class="info" id="info"></div>
+    <form id="form" style="display:none;">
+        <button type="button" onclick="sendLabel('overflowing')">Overflowing</button>
+        <button type="button" onclick="sendLabel('empty')">Empty</button>
+    </form>
+    <div style="margin-top:30px; color:#888;" id="message"></div>
+
+<script>
+let images = [];
+let idx = 0;
+
+async function fetchImages() {
+    const res = await fetch('/api/images');
+    images = await res.json();
+    idx = 0;
+    showImage();
+}
+
+function showImage() {
+    if (idx >= images.length) {
+        document.getElementById('image-container').innerHTML = '';
+        document.getElementById('info').innerHTML = '';
+        document.getElementById('form').style.display = 'none';
+        document.getElementById('progress').innerText = '';
+        document.getElementById('message').innerText = 'Toutes les images ont été triées !';
+        return;
+    }
+    const filename = images[idx];
+    document.getElementById('progress').innerText = `Image ${idx+1} / ${images.length}`;
+    document.getElementById('image-container').innerHTML = `<img id='img' src='/images/${filename}' alt='${filename}'>`;
+    document.getElementById('form').style.display = '';
+    document.getElementById('message').innerText = '';
+    // Charger l'image pour obtenir ses infos
+    const img = document.getElementById('img');
+    img.onload = function() {
+        const width = img.naturalWidth;
+        const height = img.naturalHeight;
+        fetch(`/images/${filename}`)
+            .then(r => r.blob())
+            .then(blob => {
+                const filesize = blob.size;
+                // Couleur dominante (approx, moyenne RGB)
+                const canvas = document.createElement('canvas');
+                canvas.width = 50; canvas.height = 50;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, 50, 50);
+                const data = ctx.getImageData(0, 0, 50, 50).data;
+                let r=0,g=0,b=0,n=0;
+                for(let i=0;i<data.length;i+=4){r+=data[i];g+=data[i+1];b+=data[i+2];n++;}
+                r=Math.round(r/n);g=Math.round(g/n);b=Math.round(b/n);
+                const color = `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+                document.getElementById('info').innerHTML = `<b>Nom :</b> ${filename}<br><b>Taille :</b> ${width} x ${height} px<br><b>Fichier :</b> ${filesize} octets<br><b>Couleur dominante :</b> <span class='color-box' style='background:${color}'></span> ${color}`;
+                // Stocker infos pour POST
+                img.dataset.width = width;
+                img.dataset.height = height;
+                img.dataset.filesize = filesize;
+                img.dataset.color = color;
+            });
+    }
+}
+
+function sendLabel(label) {
+    const filename = images[idx];
+    const img = document.getElementById('img');
+    fetch('/api/label', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            filename: filename,
+            label: label
+        })
+    }).then(r => r.json()).then(() => {
+        idx++;
+        showImage();
+    });
+}
+
+fetchImages();
+</script>
+</body>
+</html>
