@@ -382,42 +382,90 @@ fileInput.addEventListener('change', function() {
 });
 
 // Fonction handleFiles connectée au backend avec support user_annotation
+// Correction dans BinSight.html - remplacez le script existant par celui-ci :
+
+// Dans la fonction handleFiles, corrigez cette partie :
 function handleFiles(files) {
-    if (files.length) {
+    console.log('=== HANDLE FILES APPELÉ ===');
+    console.log('Nombre de fichiers:', files.length);
+    
+    if (files.length > 0) {
         const file = files[0];
+        console.log('Fichier sélectionné:', {
+            name: file.name,
+            size: file.size,
+            type: file.type
+        });
+        
         if (file.type.startsWith('image/')) {
+            console.log('✅ Type de fichier valide');
+            
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('location', document.getElementById('location-input').value);
-            formData.append('bin_type', document.getElementById('bin-type-select').value);
-            formData.append('comment', document.getElementById('comment-textarea').value);
-            formData.append('user_annotation', document.getElementById('status-select').value);
             
-            // Afficher un indicateur de chargement
+            // Récupérer les valeurs des champs
+            const location = document.getElementById('location-input').value;
+            const binType = document.getElementById('bin-type-select').value;
+            const comment = document.getElementById('comment-textarea').value;
+            const userAnnotation = document.getElementById('status-select').value;
+            
+            console.log('Données du formulaire:', {
+                location: location,
+                binType: binType,
+                comment: comment,
+                userAnnotation: userAnnotation
+            });
+            
+            formData.append('location', location);
+            formData.append('bin_type', binType);
+            formData.append('comment', comment);
+            formData.append('user_annotation', userAnnotation);
+            
+            // Vérifier FormData
+            console.log('FormData créé:');
+            for (let pair of formData.entries()) {
+                if (pair[1] instanceof File) {
+                    console.log(pair[0] + ':', 'File -', pair[1].name);
+                } else {
+                    console.log(pair[0] + ':', pair[1]);
+                }
+            }
+            
+            // Afficher indicateur de chargement
             dropArea.innerHTML = `
                 <i class="fas fa-spinner fa-spin text-5xl text-green-500 mb-4"></i>
                 <h3 class="text-xl font-semibold mb-2">Analyse en cours...</h3>
                 <p class="text-gray-500">Extraction des caractéristiques et classification</p>
             `;
             
+            console.log('🚀 Envoi vers /upload...');
+            
             fetch('/upload', {
                 method: 'POST',
                 body: formData
             })
             .then(response => {
+                console.log('📥 Réponse reçue:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok
+                });
+                
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 return response.json();
             })
             .then(data => {
-                console.log('Réponse serveur:', data);
+                console.log('📊 Données JSON:', data);
                 
-                // Restaurer l'interface d'upload
+                // Restaurer l'interface
                 resetUploadArea();
                 
                 if (data.success) {
-                    // Afficher les résultats de l'analyse
+                    console.log('✅ Upload réussi !');
+                    
+                    // Afficher les résultats
                     showAnalysisResults(data);
                     
                     // Rafraîchir les données
@@ -431,19 +479,80 @@ function handleFiles(files) {
                     // Message de succès
                     showSuccessMessage(data.message + (data.confidence ? ` (Confiance: ${data.confidence})` : ''));
                 } else {
+                    console.log('❌ Erreur serveur:', data.message);
                     showErrorMessage('Erreur: ' + data.message);
                 }
             })
             .catch(error => {
-                console.error('Erreur upload:', error);
+                console.error('❌ Erreur complète:', error);
                 resetUploadArea();
-                showErrorMessage('Erreur lors de l\'upload: ' + error.message);
+                
+                if (error.message.includes('Failed to fetch')) {
+                    showErrorMessage('❌ Impossible de se connecter au serveur. Vérifiez que Flask tourne sur http://localhost:5000');
+                } else {
+                    showErrorMessage('❌ Erreur lors de l\'upload: ' + error.message);
+                }
             });
         } else {
-            showErrorMessage('Veuillez sélectionner une image valide (JPG, PNG, JPEG).');
+            console.log('❌ Type de fichier invalide:', file.type);
+            showErrorMessage('❌ Veuillez sélectionner une image valide (JPG, PNG, JPEG).');
         }
+    } else {
+        console.log('❌ Aucun fichier sélectionné');
+        showErrorMessage('❌ Aucun fichier sélectionné.');
     }
 }
+
+// Correction importante : Event listener pour le bouton submit
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 Page chargée - Initialisation...');
+    
+    // Tester la connexion au serveur
+    fetch('/test')
+        .then(response => response.json())
+        .then(data => {
+            console.log('✅ Test serveur réussi:', data);
+            showSuccessMessage('Connexion serveur OK');
+        })
+        .catch(error => {
+            console.error('❌ Test serveur échoué:', error);
+            showErrorMessage('Problème de connexion au serveur');
+        });
+    
+    initMap();
+    initChart();
+    loadStats();
+    loadRecentReports();
+    
+    // CORRECTION IMPORTANTE : Event listener pour le bouton submit
+    const submitBtn = document.getElementById('submit-btn');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('🔘 Bouton submit cliqué');
+            
+            const fileInput = document.getElementById('file-input');
+            console.log('📁 FileInput trouvé:', !!fileInput);
+            
+            if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                console.log('📁 Fichiers trouvés:', fileInput.files.length);
+                handleFiles(fileInput.files);
+            } else {
+                console.log('❌ Aucun fichier dans l\'input');
+                showErrorMessage('Veuillez d\'abord sélectionner une image.');
+            }
+        });
+        console.log('✅ Event listener submit attaché');
+    } else {
+        console.error('❌ Bouton submit non trouvé !');
+    }
+    
+    // Actualiser les données toutes les 30 secondes
+    setInterval(() => {
+        loadStats();
+        loadRecentReports();
+    }, 30000);
+});
 
 // Fonction pour réinitialiser la zone d'upload
 function resetUploadArea() {
