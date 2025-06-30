@@ -841,6 +841,737 @@ function closeModal(button) {
     modal.remove();
 }
 
+
+
+// Fonction pour charger les statistiques depuis l'API
+function loadStats() {
+    console.log('📊 Chargement des statistiques...');
+    
+    fetch('/api/stats')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('📊 Statistiques reçues:', data);
+            
+            // Mettre à jour les cartes de statistiques
+            updateStatsCards(data);
+            
+            // Mettre à jour le graphique
+            updateChart(data.monthly_data);
+            
+            console.log('✅ Statistiques mises à jour avec succès');
+        })
+        .catch(error => {
+            console.error('❌ Erreur lors du chargement des statistiques:', error);
+            
+            // Afficher des valeurs par défaut en cas d'erreur
+            updateStatsCards({
+                today_uploads: 0,
+                full_bins: 0,
+                accuracy: 0.0,
+                monthly_data: []
+            });
+            
+            // Optionnel : afficher un message d'erreur discret
+            console.warn('Utilisation des statistiques par défaut en raison d\'une erreur');
+        });
+}
+
+// Fonction pour mettre à jour les cartes de statistiques
+function updateStatsCards(data) {
+    // Signalements aujourd'hui
+    const todayUploadsElement = document.querySelector('.bg-white .text-3xl');
+    if (todayUploadsElement) {
+        todayUploadsElement.textContent = data.today_uploads || 0;
+    }
+    
+    // Poubelles pleines
+    const fullBinsElements = document.querySelectorAll('.bg-white .text-3xl');
+    if (fullBinsElements[1]) {
+        fullBinsElements[1].textContent = data.full_bins || 0;
+        
+        // Ajouter une animation si le nombre est élevé
+        if (data.full_bins > 5) {
+            fullBinsElements[1].classList.add('text-red-600');
+            fullBinsElements[1].parentElement.parentElement.classList.add('border-l-4', 'border-red-500');
+        } else {
+            fullBinsElements[1].classList.remove('text-red-600');
+            fullBinsElements[1].parentElement.parentElement.classList.remove('border-l-4', 'border-red-500');
+        }
+    }
+    
+    // Taux de précision
+    const accuracyElements = document.querySelectorAll('.bg-white .text-3xl');
+    if (accuracyElements[2]) {
+        const accuracy = data.accuracy || 0;
+        accuracyElements[2].textContent = `${accuracy}%`;
+        
+        // Changer la couleur selon la précision
+        if (accuracy >= 80) {
+            accuracyElements[2].classList.add('text-green-600');
+            accuracyElements[2].classList.remove('text-yellow-600', 'text-red-600');
+        } else if (accuracy >= 60) {
+            accuracyElements[2].classList.add('text-yellow-600');
+            accuracyElements[2].classList.remove('text-green-600', 'text-red-600');
+        } else {
+            accuracyElements[2].classList.add('text-red-600');
+            accuracyElements[2].classList.remove('text-green-600', 'text-yellow-600');
+        }
+    }
+    
+    // Mettre à jour les indicateurs de tendance
+    updateTrendIndicators(data);
+}
+
+// Fonction pour mettre à jour les indicateurs de tendance
+function updateTrendIndicators(data) {
+    const trendElements = document.querySelectorAll('.bg-white p');
+    
+    // Tendance des signalements
+    if (trendElements[0]) {
+        const uploadsToday = data.today_uploads || 0;
+        let trendText = 'En temps réel';
+        let trendIcon = 'fas fa-minus';
+        let trendColor = 'text-gray-600';
+        
+        if (uploadsToday > 10) {
+            trendText = 'Très actif';
+            trendIcon = 'fas fa-arrow-up';
+            trendColor = 'text-green-600';
+        } else if (uploadsToday > 5) {
+            trendText = 'Activité normale';
+            trendIcon = 'fas fa-arrow-up';
+            trendColor = 'text-blue-600';
+        }
+        
+        const trendElement = trendElements[0].querySelector('.font-medium');
+        if (trendElement) {
+            trendElement.innerHTML = `<i class="${trendIcon} mr-1"></i>${trendText}`;
+            trendElement.className = `font-medium ${trendColor}`;
+        }
+    }
+    
+    // Tendance des poubelles pleines
+    if (trendElements[1]) {
+        const fullBins = data.full_bins || 0;
+        let alertText = 'Surveillance active';
+        let alertIcon = 'fas fa-shield-alt';
+        let alertColor = 'text-green-600';
+        
+        if (fullBins > 10) {
+            alertText = 'Alerte critique';
+            alertIcon = 'fas fa-exclamation-triangle';
+            alertColor = 'text-red-600';
+        } else if (fullBins > 5) {
+            alertText = 'Attention requise';
+            alertIcon = 'fas fa-exclamation-circle';
+            alertColor = 'text-orange-600';
+        }
+        
+        const alertElement = trendElements[1].querySelector('.font-medium');
+        if (alertElement) {
+            alertElement.innerHTML = `<i class="${alertIcon} mr-1"></i>${alertText}`;
+            alertElement.className = `font-medium ${alertColor}`;
+        }
+    }
+    
+    // Tendance de la précision IA
+    if (trendElements[2]) {
+        const accuracy = data.accuracy || 0;
+        let aiText = 'IA en apprentissage';
+        let aiIcon = 'fas fa-brain';
+        let aiColor = 'text-blue-600';
+        
+        if (accuracy >= 90) {
+            aiText = 'IA très performante';
+            aiIcon = 'fas fa-star';
+            aiColor = 'text-green-600';
+        } else if (accuracy >= 75) {
+            aiText = 'IA performante';
+            aiIcon = 'fas fa-check-circle';
+            aiColor = 'text-blue-600';
+        } else if (accuracy < 50) {
+            aiText = 'IA à améliorer';
+            aiIcon = 'fas fa-exclamation-triangle';
+            aiColor = 'text-orange-600';
+        }
+        
+        const aiElement = trendElements[2].querySelector('.font-medium');
+        if (aiElement) {
+            aiElement.innerHTML = `<i class="${aiIcon} mr-1"></i>${aiText}`;
+            aiElement.className = `font-medium ${aiColor}`;
+        }
+    }
+}
+
+// Fonction pour mettre à jour le graphique
+function updateChart(monthlyData) {
+    if (!window.statsChart) {
+        console.warn('⚠️ Graphique non initialisé, tentative d\'initialisation...');
+        initChart();
+        return;
+    }
+    
+    console.log('📈 Mise à jour du graphique avec:', monthlyData);
+    
+    // Préparer les données pour Chart.js
+    const months = [
+        'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun',
+        'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'
+    ];
+    
+    // Initialiser les données pour tous les mois
+    const emptyData = new Array(12).fill(0);
+    const fullData = new Array(12).fill(0);
+    const totalData = new Array(12).fill(0);
+    
+    // Remplir avec les données reçues
+    if (monthlyData && Array.isArray(monthlyData)) {
+        monthlyData.forEach(item => {
+            const monthIndex = parseInt(item[0]) - 1; // item[0] est le mois (1-12)
+            if (monthIndex >= 0 && monthIndex < 12) {
+                totalData[monthIndex] = item[1] || 0;  // total
+                emptyData[monthIndex] = item[2] || 0;  // empty
+                fullData[monthIndex] = item[3] || 0;   // full
+            }
+        });
+    }
+    
+    // Mettre à jour les données du graphique
+    window.statsChart.data.labels = months;
+    window.statsChart.data.datasets[0].data = totalData;
+    window.statsChart.data.datasets[1].data = emptyData;
+    window.statsChart.data.datasets[2].data = fullData;
+    
+    // Redessiner le graphique
+    window.statsChart.update('active');
+    
+    console.log('✅ Graphique mis à jour');
+}
+
+// Fonction pour initialiser le graphique (si pas encore fait)
+function initChart() {
+    const ctx = document.getElementById('statsChart');
+    if (!ctx) {
+        console.error('❌ Element canvas #statsChart non trouvé');
+        return;
+    }
+    
+    console.log('📈 Initialisation du graphique...');
+    
+    // Détruire le graphique existant s'il y en a un
+    if (window.statsChart) {
+        window.statsChart.destroy();
+    }
+    
+    window.statsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'],
+            datasets: [
+                {
+                    label: 'Total signalements',
+                    data: new Array(12).fill(0),
+                    borderColor: 'rgb(59, 130, 246)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: 'Poubelles vides',
+                    data: new Array(12).fill(0),
+                    borderColor: 'rgb(34, 197, 94)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    tension: 0.4,
+                    fill: false
+                },
+                {
+                    label: 'Poubelles pleines',
+                    data: new Array(12).fill(0),
+                    borderColor: 'rgb(239, 68, 68)',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    tension: 0.4,
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Évolution mensuelle des signalements',
+                    font: {
+                        size: 16,
+                        weight: 'bold'
+                    }
+                },
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.parsed.y} signalement(s)`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    },
+                    title: {
+                        display: true,
+                        text: 'Nombre de signalements'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Mois'
+                    }
+                }
+            },
+            animation: {
+                duration: 1000,
+                easing: 'easeInOutQuart'
+            }
+        }
+    });
+    
+    console.log('✅ Graphique initialisé');
+}
+
+
+
+// Fonction pour charger les derniers signalements depuis l'API
+function loadRecentReports() {
+    console.log('📋 Chargement des derniers signalements...');
+    
+    fetch('/api/recent_reports')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(reports => {
+            console.log('📋 Signalements reçus:', reports);
+            
+            // Mettre à jour le tableau des signalements
+            updateReportsTable(reports);
+            
+            console.log('✅ Derniers signalements mis à jour avec succès');
+        })
+        .catch(error => {
+            console.error('❌ Erreur lors du chargement des signalements:', error);
+            
+            // Afficher un message d'erreur dans le tableau
+            showReportsError('Erreur lors du chargement des signalements');
+        });
+}
+
+// Fonction pour mettre à jour le tableau des signalements
+function updateReportsTable(reports) {
+    const tbody = document.querySelector('tbody');
+    const noReportsDiv = document.getElementById('no-reports');
+    
+    if (!tbody) {
+        console.error('❌ Élément tbody non trouvé');
+        return;
+    }
+    
+    // Vider le tableau existant
+    tbody.innerHTML = '';
+    
+    if (!reports || reports.length === 0) {
+        // Afficher le message "aucun signalement"
+        if (noReportsDiv) {
+            noReportsDiv.style.display = 'block';
+        }
+        console.log('ℹ️ Aucun signalement à afficher');
+        return;
+    }
+    
+    // Masquer le message "aucun signalement"
+    if (noReportsDiv) {
+        noReportsDiv.style.display = 'none';
+    }
+    
+    // Créer les lignes du tableau
+    reports.forEach((report, index) => {
+        const row = createReportRow(report, index);
+        tbody.appendChild(row);
+    });
+    
+    console.log(`✅ ${reports.length} signalement(s) affiché(s) dans le tableau`);
+}
+
+// Fonction pour créer une ligne de signalement
+function createReportRow(report, index) {
+    const row = document.createElement('tr');
+    row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+    
+    // Déterminer la couleur du statut
+    const statusColor = getStatusColor(report.status);
+    const statusIcon = getStatusIcon(report.status);
+    
+    row.innerHTML = `
+        <!-- Image -->
+        <td class="px-6 py-4 whitespace-nowrap">
+            <div class="flex items-center">
+                ${report.image_url ? `
+                    <img class="h-12 w-12 rounded-lg object-cover border cursor-pointer hover:scale-105 transition-transform" 
+                         src="${report.image_url}" 
+                         alt="Image ${report.filename}"
+                         onclick="viewImageDetails(${report.id})">
+                ` : `
+                    <div class="h-12 w-12 rounded-lg bg-gray-200 flex items-center justify-center">
+                        <i class="fas fa-image text-gray-400"></i>
+                    </div>
+                `}
+                <div class="ml-3">
+                    <div class="text-sm font-medium text-gray-900">
+                        ${report.filename || 'Image inconnue'}
+                    </div>
+                    <div class="text-sm text-gray-500">
+                        ID: ${report.id}
+                    </div>
+                </div>
+            </div>
+        </td>
+        
+        <!-- Localisation -->
+        <td class="px-6 py-4 whitespace-nowrap">
+            <div class="text-sm text-gray-900">
+                <i class="fas fa-map-marker-alt text-gray-400 mr-1"></i>
+                ${report.location || 'Non spécifiée'}
+            </div>
+            <div class="text-sm text-gray-500">
+                ${report.bin_type || 'Type standard'}
+            </div>
+        </td>
+        
+        <!-- Statut -->
+        <td class="px-6 py-4 whitespace-nowrap">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}">
+                <i class="${statusIcon} mr-1"></i>
+                ${capitalizeFirst(report.status)}
+            </span>
+        </td>
+        
+        <!-- Date -->
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+            <div class="flex items-center">
+                <i class="fas fa-clock text-gray-400 mr-1"></i>
+                ${report.date}
+            </div>
+        </td>
+        
+        <!-- Actions -->
+        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+            <div class="flex space-x-2">
+                <button onclick="viewImageDetails(${report.id})" 
+                        class="text-blue-600 hover:text-blue-900 transition-colors"
+                        title="Voir les détails">
+                    <i class="fas fa-eye"></i>
+                </button>
+                
+                ${report.status !== 'pleine' && report.status !== 'vide' ? `
+                    <button onclick="annotateFromTable(${report.id}, 'pleine')" 
+                            class="text-red-600 hover:text-red-900 transition-colors"
+                            title="Marquer comme pleine">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                    <button onclick="annotateFromTable(${report.id}, 'vide')" 
+                            class="text-green-600 hover:text-green-900 transition-colors"
+                            title="Marquer comme vide">
+                        <i class="fas fa-check-circle"></i>
+                    </button>
+                ` : ''}
+                
+                <button onclick="deleteReport(${report.id})" 
+                        class="text-gray-400 hover:text-red-600 transition-colors"
+                        title="Supprimer">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </td>
+    `;
+    
+    return row;
+}
+
+// Fonction pour obtenir la couleur du statut
+function getStatusColor(status) {
+    switch(status?.toLowerCase()) {
+        case 'pleine':
+            return 'bg-red-100 text-red-800';
+        case 'vide':
+            return 'bg-green-100 text-green-800';
+        case 'non classée':
+        case 'inconnu':
+            return 'bg-gray-100 text-gray-800';
+        default:
+            return 'bg-yellow-100 text-yellow-800';
+    }
+}
+
+// Fonction pour obtenir l'icône du statut
+function getStatusIcon(status) {
+    switch(status?.toLowerCase()) {
+        case 'pleine':
+            return 'fas fa-exclamation-triangle';
+        case 'vide':
+            return 'fas fa-check-circle';
+        case 'non classée':
+        case 'inconnu':
+            return 'fas fa-question-circle';
+        default:
+            return 'fas fa-clock';
+    }
+}
+
+// Fonction utilitaire pour capitaliser la première lettre
+function capitalizeFirst(str) {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// Fonction pour afficher une erreur dans le tableau
+function showReportsError(message) {
+    const tbody = document.querySelector('tbody');
+    const noReportsDiv = document.getElementById('no-reports');
+    
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="px-6 py-8 text-center">
+                    <div class="text-red-500">
+                        <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
+                        <p class="text-sm">${message}</p>
+                        <button onclick="loadRecentReports()" class="mt-2 text-blue-600 hover:text-blue-800 text-sm underline">
+                            Réessayer
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+    
+    if (noReportsDiv) {
+        noReportsDiv.style.display = 'none';
+    }
+}
+
+// Fonction pour voir les détails d'une image
+function viewImageDetails(imageId) {
+    console.log(`👁️ Affichage des détails pour l'image ID: ${imageId}`);
+    
+    fetch(`/api/image/${imageId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(imageData => {
+            console.log('📊 Détails de l\'image reçus:', imageData);
+            showImageDetailsModal(imageData);
+        })
+        .catch(error => {
+            console.error('❌ Erreur lors du chargement des détails:', error);
+            showErrorMessage('Erreur lors du chargement des détails de l\'image');
+        });
+}
+
+// Fonction pour afficher la modal des détails d'image
+function showImageDetailsModal(imageData) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+    modal.innerHTML = `
+        <div class="bg-white p-6 rounded-lg max-w-2xl w-full max-h-screen overflow-y-auto">
+            <!-- En-tête -->
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold text-gray-900">
+                    <i class="fas fa-info-circle mr-2 text-blue-600"></i>
+                    Détails du signalement
+                </h3>
+                <button onclick="closeModal(this)" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- Image -->
+            <div class="mb-6 text-center">
+                <img src="${imageData.image_url}" class="max-w-full max-h-64 mx-auto rounded-lg border shadow-sm" alt="Image du signalement">
+            </div>
+            
+            <!-- Informations principales -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h4 class="font-semibold mb-3 text-gray-800">📋 Informations générales</h4>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">ID :</span>
+                            <span class="font-medium">${imageData.id}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Fichier :</span>
+                            <span class="font-medium">${imageData.filename || 'N/A'}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Date :</span>
+                            <span class="font-medium">${new Date(imageData.upload_date).toLocaleString()}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Localisation :</span>
+                            <span class="font-medium">${imageData.location || 'Non spécifiée'}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Type de poubelle :</span>
+                            <span class="font-medium">${imageData.bin_type || 'Standard'}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <h4 class="font-semibold mb-3 text-gray-800">🤖 Classifications</h4>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">IA :</span>
+                            <span class="font-medium">${imageData.auto_classification || 'N/A'}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Utilisateur :</span>
+                            <span class="font-medium">${imageData.user_annotation || 'N/A'}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Manuelle :</span>
+                            <span class="font-medium">${imageData.manual_annotation || 'N/A'}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Confiance :</span>
+                            <span class="font-medium">${imageData.confidence ? (imageData.confidence * 100).toFixed(1) + '%' : 'N/A'}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Caractéristiques techniques -->
+            <div class="bg-gray-50 p-4 rounded-lg mb-6">
+                <h4 class="font-semibold mb-3 text-gray-800">🔧 Caractéristiques techniques</h4>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div>
+                        <span class="text-gray-600 block">Dimensions :</span>
+                        <span class="font-medium">${imageData.width || 0} × ${imageData.height || 0} px</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600 block">Taille :</span>
+                        <span class="font-medium">${imageData.file_size ? (imageData.file_size / 1024).toFixed(1) + ' Ko' : 'N/A'}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600 block">Luminosité :</span>
+                        <span class="font-medium">${imageData.brightness ? imageData.brightness.toFixed(1) : 'N/A'}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600 block">Contraste :</span>
+                        <span class="font-medium">${imageData.contrast_level ? imageData.contrast_level.toFixed(1) : 'N/A'}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Commentaire -->
+            ${imageData.comment ? `
+            <div class="bg-yellow-50 p-4 rounded-lg mb-6">
+                <h4 class="font-semibold mb-2 text-gray-800">💬 Commentaire</h4>
+                <p class="text-sm text-gray-700">${imageData.comment}</p>
+            </div>
+            ` : ''}
+            
+            <!-- Actions -->
+            <div class="flex flex-wrap gap-2 justify-center">
+                <button onclick="annotateFromTable(${imageData.id}, 'pleine')" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">
+                    <i class="fas fa-times mr-2"></i>Marquer pleine
+                </button>
+                <button onclick="annotateFromTable(${imageData.id}, 'vide')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+                    <i class="fas fa-check mr-2"></i>Marquer vide
+                </button>
+                <button onclick="closeModal(this)" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition">
+                    <i class="fas fa-times mr-2"></i>Fermer
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// Fonction pour annoter depuis le tableau
+function annotateFromTable(imageId, annotation) {
+    console.log(`📝 Annotation depuis le tableau: ID ${imageId} -> ${annotation}`);
+    
+    fetch(`/annotate/${imageId}/${annotation}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showSuccessMessage(`✅ Image ${imageId} annotée comme "${annotation}"`);
+                
+                // Rafraîchir les données
+                loadRecentReports();
+                loadStats();
+                loadMapData();
+                
+                // Fermer la modal si elle est ouverte
+                const modal = document.querySelector('.fixed.inset-0');
+                if (modal) modal.remove();
+            } else {
+                showErrorMessage('Erreur: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Erreur annotation:', error);
+            showErrorMessage('Erreur lors de l\'annotation: ' + error.message);
+        });
+}
+
+// Fonction pour supprimer un signalement (optionnelle)
+function deleteReport(imageId) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce signalement ?')) {
+        console.log(`🗑️ Suppression du signalement ID: ${imageId}`);
+        
+        fetch(`/api/delete_image/${imageId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showSuccessMessage('✅ Signalement supprimé avec succès');
+                loadRecentReports();
+                loadStats();
+                loadMapData();
+            } else {
+                showErrorMessage('Erreur: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Erreur suppression:', error);
+            showErrorMessage('Erreur lors de la suppression: ' + error.message);
+        });
+    }
+}
+
 // Initialisation au chargement de la page
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Page chargée - Initialisation...');
@@ -895,12 +1626,401 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 30000);
 });
 
+
+// Fonction pour charger les données de la carte depuis l'API
+function loadMapData() {
+    console.log('🗺️ Chargement des données de la carte...');
+    
+    fetch('/api/poubelles')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(poubelles => {
+            console.log('🗺️ Données des poubelles reçues:', poubelles);
+            
+            // Mettre à jour la carte avec les nouvelles données
+            updateMapMarkers(poubelles);
+            
+            console.log('✅ Carte mise à jour avec succès');
+        })
+        .catch(error => {
+            console.error('❌ Erreur lors du chargement des données de la carte:', error);
+            
+            // Afficher des données par défaut ou un message d'erreur
+            showMapError('Erreur lors du chargement des poubelles');
+        });
+}
+
+// Variable globale pour stocker les marqueurs
+let mapMarkers = [];
+
+// Fonction pour mettre à jour les marqueurs sur la carte
+function updateMapMarkers(poubelles) {
+    if (!map) {
+        console.error('❌ Carte non initialisée');
+        return;
+    }
+    
+    // Supprimer tous les marqueurs existants
+    mapMarkers.forEach(marker => {
+        map.removeLayer(marker);
+    });
+    mapMarkers = [];
+    
+    if (!poubelles || poubelles.length === 0) {
+        console.log('ℹ️ Aucune poubelle à afficher sur la carte');
+        return;
+    }
+    
+    // Ajouter les nouveaux marqueurs
+    poubelles.forEach((poubelle, index) => {
+        const marker = createMapMarker(poubelle, index);
+        if (marker) {
+            mapMarkers.push(marker);
+            marker.addTo(map);
+        }
+    });
+    
+    // Ajuster la vue de la carte pour montrer tous les marqueurs
+    if (mapMarkers.length > 0) {
+        const group = new L.featureGroup(mapMarkers);
+        map.fitBounds(group.getBounds().pad(0.1));
+    }
+    
+    console.log(`✅ ${mapMarkers.length} marqueur(s) ajouté(s) à la carte`);
+}
+
+// Fonction pour créer un marqueur sur la carte
+function createMapMarker(poubelle, index) {
+    // Vérifier si on a des coordonnées valides
+    if (!poubelle.lat || !poubelle.lng) {
+        console.warn(`⚠️ Coordonnées manquantes pour la poubelle ID ${poubelle.id}`);
+        return null;
+    }
+    
+    // Déterminer l'icône selon le statut
+    const iconConfig = getMarkerIcon(poubelle.status);
+    
+    // Créer l'icône personnalisée
+    const customIcon = L.divIcon({
+        html: `
+            <div class="marker-container" style="position: relative;">
+                <div class="marker-icon" style="
+                    width: 24px; 
+                    height: 24px; 
+                    background-color: ${iconConfig.color}; 
+                    border: 2px solid white; 
+                    border-radius: 50%; 
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 10px;
+                    color: white;
+                    font-weight: bold;
+                    ${poubelle.status === 'pleine' ? 'animation: pulse 2s infinite;' : ''}
+                ">
+                    <i class="${iconConfig.icon}"></i>
+                </div>
+                ${poubelle.status === 'pleine' ? `
+                    <div style="
+                        position: absolute;
+                        top: -25px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        background: #ef4444;
+                        color: white;
+                        padding: 2px 6px;
+                        border-radius: 3px;
+                        font-size: 8px;
+                        font-weight: bold;
+                        white-space: nowrap;
+                    ">URGENT</div>
+                ` : ''}
+            </div>
+        `,
+        className: 'custom-marker',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+    });
+    
+    // Créer le marqueur
+    const marker = L.marker([poubelle.lat, poubelle.lng], {
+        icon: customIcon
+    });
+    
+    // Créer le contenu du popup
+    const popupContent = createPopupContent(poubelle);
+    
+    // Ajouter le popup au marqueur
+    marker.bindPopup(popupContent, {
+        maxWidth: 300,
+        className: 'custom-popup'
+    });
+    
+    // Ajouter un événement de clic pour plus d'actions
+    marker.on('click', function() {
+        console.log(`🗺️ Clic sur la poubelle ID: ${poubelle.id}`);
+        // Le popup s'ouvre automatiquement, mais on peut ajouter d'autres actions ici
+    });
+    
+    return marker;
+}
+
+// Fonction pour obtenir la configuration de l'icône selon le statut
+function getMarkerIcon(status) {
+    switch(status?.toLowerCase()) {
+        case 'pleine':
+            return {
+                color: '#ef4444',
+                icon: 'fas fa-exclamation'
+            };
+        case 'vide':
+            return {
+                color: '#22c55e',
+                icon: 'fas fa-check'
+            };
+        case 'non classée':
+        case 'inconnu':
+            return {
+                color: '#6b7280',
+                icon: 'fas fa-question'
+            };
+        default:
+            return {
+                color: '#f59e0b',
+                icon: 'fas fa-clock'
+            };
+    }
+}
+
+// Fonction pour créer le contenu du popup
+function createPopupContent(poubelle) {
+    const statusColor = poubelle.status === 'pleine' ? 'text-red-600' : 
+                       poubelle.status === 'vide' ? 'text-green-600' : 'text-gray-600';
+    
+    const urgencyBadge = poubelle.status === 'pleine' ? 
+        `<span class="inline-block bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-semibold mb-2">
+            <i class="fas fa-exclamation-triangle mr-1"></i>URGENT
+        </span>` : '';
+    
+    return `
+        <div class="popup-content p-3" style="min-width: 250px;">
+            <!-- En-tête avec statut -->
+            <div class="mb-3">
+                ${urgencyBadge}
+                <h3 class="font-bold text-lg text-gray-800">
+                    <i class="fas fa-trash-alt mr-2"></i>Poubelle #${poubelle.id}
+                </h3>
+                <p class="text-sm text-gray-600">${poubelle.location || 'Localisation non spécifiée'}</p>
+            </div>
+            
+            <!-- Statut principal -->
+            <div class="mb-3 p-2 rounded-lg ${poubelle.status === 'pleine' ? 'bg-red-50' : 'bg-green-50'}">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">État actuel :</span>
+                    <span class="font-semibold ${statusColor} capitalize">
+                        ${poubelle.status === 'pleine' ? '🗑️' : '✨'} ${poubelle.status}
+                    </span>
+                </div>
+                ${poubelle.confidence ? `
+                    <div class="flex items-center justify-between mt-1">
+                        <span class="text-xs text-gray-500">Confiance :</span>
+                        <span class="text-xs font-medium">${(poubelle.confidence * 100).toFixed(0)}%</span>
+                    </div>
+                ` : ''}
+            </div>
+            
+            <!-- Informations détaillées -->
+            <div class="space-y-2 text-sm">
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-600">
+                        <i class="fas fa-clock mr-1"></i>Dernière mise à jour :
+                    </span>
+                    <span class="font-medium">${poubelle.time}</span>
+                </div>
+                
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-600">
+                        <i class="fas fa-map-marker-alt mr-1"></i>Coordonnées :
+                    </span>
+                    <span class="font-medium text-xs">
+                        ${poubelle.lat.toFixed(4)}, ${poubelle.lng.toFixed(4)}
+                    </span>
+                </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="mt-4 flex gap-2">
+                <button onclick="viewImageDetails(${poubelle.id})" 
+                        class="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-sm px-3 py-2 rounded-lg transition">
+                    <i class="fas fa-eye mr-1"></i>Détails
+                </button>
+                
+                ${poubelle.status !== 'pleine' && poubelle.status !== 'vide' ? `
+                    <button onclick="annotateFromMap(${poubelle.id}, 'pleine')" 
+                            class="flex-1 bg-red-500 hover:bg-red-600 text-white text-sm px-3 py-2 rounded-lg transition">
+                        <i class="fas fa-trash-alt mr-1"></i>Pleine
+                    </button>
+                    <button onclick="annotateFromMap(${poubelle.id}, 'vide')" 
+                            class="flex-1 bg-green-500 hover:bg-green-600 text-white text-sm px-3 py-2 rounded-lg transition">
+                        <i class="fas fa-check mr-1"></i>Vide
+                    </button>
+                ` : ''}
+            </div>
+            
+            ${poubelle.status === 'pleine' ? `
+                <div class="mt-3 p-2 bg-red-100 border-l-4 border-red-500 rounded">
+                    <p class="text-xs text-red-700">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                        <strong>Action requise :</strong> Cette poubelle doit être vidée rapidement.
+                    </p>
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+// Fonction pour annoter depuis la carte
+function annotateFromMap(poubelleId, annotation) {
+    console.log(`📝 Annotation depuis la carte: ID ${poubelleId} -> ${annotation}`);
+    
+    fetch(`/annotate/${poubelleId}/${annotation}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showSuccessMessage(`✅ Poubelle ${poubelleId} annotée comme "${annotation}"`);
+                
+                // Rafraîchir toutes les données
+                loadMapData();
+                loadStats();
+                loadRecentReports();
+                
+                // Fermer tous les popups ouverts
+                map.closePopup();
+            } else {
+                showErrorMessage('Erreur: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Erreur annotation depuis carte:', error);
+            showErrorMessage('Erreur lors de l\'annotation: ' + error.message);
+        });
+}
+
+// Fonction pour afficher une erreur sur la carte
+function showMapError(message) {
+    // Supprimer tous les marqueurs existants
+    mapMarkers.forEach(marker => {
+        map.removeLayer(marker);
+    });
+    mapMarkers = [];
+    
+    // Ajouter un marqueur d'erreur au centre de la carte
+    const errorIcon = L.divIcon({
+        html: `
+            <div style="
+                background: #ef4444;
+                color: white;
+                padding: 8px 12px;
+                border-radius: 6px;
+                font-size: 12px;
+                white-space: nowrap;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            ">
+                <i class="fas fa-exclamation-triangle mr-1"></i>
+                ${message}
+            </div>
+        `,
+        className: 'error-marker',
+        iconSize: [200, 30],
+        iconAnchor: [100, 15]
+    });
+    
+    const errorMarker = L.marker(map.getCenter(), {
+        icon: errorIcon
+    });
+    
+    errorMarker.addTo(map);
+    mapMarkers.push(errorMarker);
+    
+    // Supprimer le marqueur d'erreur après 5 secondes
+    setTimeout(() => {
+        map.removeLayer(errorMarker);
+        mapMarkers = mapMarkers.filter(m => m !== errorMarker);
+    }, 5000);
+}
+
+// Fonction pour centrer la carte sur une poubelle spécifique
+function centerMapOnBin(poubelleId) {
+    const marker = mapMarkers.find(m => {
+        const popup = m.getPopup();
+        return popup && popup.getContent().includes(`#${poubelleId}`);
+    });
+    
+    if (marker) {
+        map.setView(marker.getLatLng(), 16);
+        marker.openPopup();
+        console.log(`🎯 Carte centrée sur la poubelle ${poubelleId}`);
+    } else {
+        console.warn(`⚠️ Poubelle ${poubelleId} non trouvée sur la carte`);
+    }
+}
+
+// Fonction pour filtrer les marqueurs par statut
+function filterMapMarkers(status) {
+    mapMarkers.forEach(marker => {
+        const popup = marker.getPopup();
+        const content = popup ? popup.getContent() : '';
+        
+        if (status === 'all') {
+            // Afficher tous les marqueurs
+            marker.setOpacity(1);
+        } else {
+            // Afficher seulement les marqueurs correspondant au statut
+            const shouldShow = content.toLowerCase().includes(status.toLowerCase());
+            marker.setOpacity(shouldShow ? 1 : 0.3);
+        }
+    });
+    
+    console.log(`🔍 Filtrage des marqueurs par statut: ${status}`);
+}
+
+// Ajouter les styles CSS pour les marqueurs animés
+const mapStyles = document.createElement('style');
+mapStyles.textContent = `
+    @keyframes pulse {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+    
+    .custom-popup .leaflet-popup-content-wrapper {
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .custom-popup .leaflet-popup-content {
+        margin: 0;
+        line-height: 1.4;
+    }
+    
+    .custom-marker {
+        background: transparent;
+        border: none;
+    }
+`;
+document.head.appendChild(mapStyles);
+
 // Reste des fonctions inchangées (initMap, loadMapData, etc.)
 // [Gardez toutes les autres fonctions comme elles sont]
 
 // Charger la carte avec des données réelles
 function initMap() {
-    map = L.map('map').setView([48.8566, 2.3522], 13);
+    map = L.map('map').setView([-32.74044740396817, -56.00385146995099], 7);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);

@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 from datetime import datetime
 import traceback
+import random
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'binsight-secret-key-2023'
@@ -283,6 +284,27 @@ def upload_file():
         bin_type = request.form.get('bin_type', '').strip()
         comment = request.form.get('comment', '').strip()
         user_annotation = request.form.get('user_annotation', '').strip()
+
+
+        p1 = (-30.250704671553954, -57.14852536982011)
+        p2 = (-32.89257311452824, -53.43179943666392)
+        p3 = (-34.88099515435342, -54.89218198697705)
+        p4 = (-34.11095493205359, -58.14044352690463)
+
+        latitudes = [p1[0], p2[0], p3[0], p4[0]]
+        longitudes = [p1[1], p2[1], p3[1], p4[1]]
+
+        min_latitude = min(latitudes)
+        max_latitude = max(latitudes)
+        min_longitude = min(longitudes)
+        max_longitude = max(longitudes)
+
+        random_latitude = random.uniform(min_latitude, max_latitude)
+        random_longitude = random.uniform(min_longitude, max_longitude)
+
+        location = str((random_latitude, random_longitude))
+
+        print(location)
         
         print(f"📝 Données form:")
         print(f"   - Location: '{location}'")
@@ -513,60 +535,189 @@ def api_recent_reports():
 
 @app.route('/api/poubelles')
 def api_poubelles():
-    """API pour les données des poubelles sur la carte"""
+    """API pour les données des poubelles sur la carte avec vraies coordonnées depuis la DB"""
     try:
         conn = sqlite3.connect('binsight.db')
         cursor = conn.cursor()
         
-        cursor.execute('''SELECT id, filename, location, manual_annotation, auto_classification, 
-            upload_date, confidence, user_annotation FROM images 
-            ORDER BY upload_date DESC LIMIT 20''')
+        cursor.execute('''SELECT 
+            id, filename, location, manual_annotation, auto_classification, 
+            upload_date, confidence, user_annotation, bin_type, comment 
+            FROM images 
+            ORDER BY upload_date DESC LIMIT 50''')
         
         images = cursor.fetchall()
         conn.close()
         
-        base_coords = [
-            (48.8566, 2.3522), (48.8575, 2.3585), (48.8550, 2.3465),
-            (45.7640, 4.8357), (45.7680, 4.8400), (45.7600, 4.8300),
-            (43.2965, 5.3698), (43.3000, 5.3750), (43.2930, 5.3650),
-            (50.6292, 3.0573), (50.6320, 3.0600), (50.6260, 3.0540),
-            (47.2184, -1.5536), (47.2220, -1.5500), (47.2150, -1.5570),
-            (44.8378, -0.5792), (44.8410, -0.5750), (44.8340, -0.5830),
-            (43.6047, 1.4442), (43.6080, 1.4480)
-        ]
-        
         poubelles = []
         for i, img in enumerate(images):
-            if i < len(base_coords):
-                status = img[7] or img[3] or img[4] or 'vide'
-                
-                try:
-                    upload_time = datetime.strptime(img[5], '%Y-%m-%d %H:%M:%S')
-                    time_diff = datetime.now() - upload_time
-                    if time_diff.days > 0:
-                        time_str = f"{time_diff.days} j"
-                    elif time_diff.seconds >= 3600:
-                        time_str = f"{time_diff.seconds // 3600} h"
-                    else:
-                        time_str = f"{time_diff.seconds // 60} min"
-                except:
-                    time_str = "Récent"
-                
-                poubelles.append({
-                    'id': img[0],
-                    'lat': base_coords[i][0],
-                    'lng': base_coords[i][1],
-                    'status': status,
-                    'time': time_str,
-                    'location': img[2] or f'Location {i+1}',
-                    'confidence': img[6] or 0.0
-                })
+            # Déterminer le statut final (priorité: user_annotation > manual_annotation > auto_classification)
+            status = img[7] or img[3] or img[4] or 'non classée'
+            
+            # Calculer le temps écoulé depuis l'upload
+            try:
+                upload_time = datetime.strptime(img[5], '%Y-%m-%d %H:%M:%S')
+                time_diff = datetime.now() - upload_time
+                if time_diff.days > 0:
+                    time_str = f"{time_diff.days} j"
+                elif time_diff.seconds >= 3600:
+                    time_str = f"{time_diff.seconds // 3600} h"
+                else:
+                    time_str = f"{time_diff.seconds // 60} min"
+            except:
+                time_str = "Récent"
+            
+            # 🎯 EXTRACTION DES COORDONNÉES DEPUIS LA DB
+            lat, lng = extract_coordinates_from_location(img[2])  # img[2] = location
+            
+            poubelles.append({
+                'id': img[0],
+                'lat': lat,
+                'lng': lng,
+                'status': status,
+                'time': time_str,
+                'location': img[2] or f'Point {i+1}',
+                'confidence': img[6] or 0.0,
+                'bin_type': img[8] or 'Standard',
+                'comment': img[9]
+            })
         
+        print(f"✅ {len(poubelles)} poubelles chargées avec coordonnées depuis la DB")
         return jsonify(poubelles)
         
     except Exception as e:
-        print(f"Erreur API poubelles: {e}")
+        print(f"❌ Erreur API poubelles: {e}")
         return jsonify([])
+
+def extract_coordinates_from_location(location_str):
+    """Extraire les coordonnées lat/lng depuis le string de localisation"""
+    try:
+        if not location_str:
+            # Coordonnées par défaut (Paris)
+            return 48.8566, 2.3522
+        
+        # Si la location contient un tuple, l'extraire
+        if '(' in location_str and ')' in location_str and ',' in location_str:
+            # Format: "(-30.250704, -57.148525)" ou "Location Name (-30.250704, -57.148525)"
+            
+            # Trouver le contenu entre parenthèses
+            start = location_str.rfind('(')
+            end = location_str.rfind(')')
+            
+            if start != -1 and end != -1 and end > start:
+                coord_str = location_str[start+1:end]
+                
+                # Séparer par la virgule
+                parts = [part.strip() for part in coord_str.split(',')]
+                
+                if len(parts) == 2:
+                    try:
+                        lat = float(parts[0])
+                        lng = float(parts[1])
+                        
+                        # Vérifier que les coordonnées sont dans des plages valides
+                        if -90 <= lat <= 90 and -180 <= lng <= 180:
+                            print(f"✅ Coordonnées extraites: ({lat}, {lng}) depuis '{location_str}'")
+                            return lat, lng
+                        else:
+                            print(f"⚠️ Coordonnées hors limites: ({lat}, {lng})")
+                    except ValueError as e:
+                        print(f"⚠️ Erreur conversion coordonnées: {e}")
+        
+        # Si pas de coordonnées trouvées, essayer de deviner selon le nom de lieu
+        return get_default_coordinates_by_name(location_str)
+        
+    except Exception as e:
+        print(f"❌ Erreur extraction coordonnées: {e}")
+        return 48.8566, 2.3522  # Paris par défaut
+
+def get_default_coordinates_by_name(location_name):
+    """Obtenir des coordonnées par défaut selon le nom de lieu"""
+    
+    if not location_name:
+        return 48.8566, 2.3522  # Paris
+    
+    location_lower = location_name.lower()
+    
+    # Dictionnaire des villes avec coordonnées
+    city_coordinates = {
+        'paris': (48.8566, 2.3522),
+        'lyon': (45.7640, 4.8357),
+        'marseille': (43.2965, 5.3698),
+        'lille': (50.6292, 3.0573),
+        'nantes': (47.2184, -1.5536),
+        'bordeaux': (44.8378, -0.5792),
+        'toulouse': (43.6047, 1.4442),
+        'nice': (43.7102, 7.2620),
+        'strasbourg': (48.5734, 7.7521),
+        'rennes': (48.1173, -1.6778),
+        'reims': (49.2583, 4.0317),
+        'angers': (47.4784, -0.5632),
+        'le havre': (49.4944, 0.1079),
+        'montpellier': (43.6119, 3.8772),
+        'nancy': (48.6921, 6.1844)
+    }
+    
+    # Rechercher une correspondance
+    for city, coords in city_coordinates.items():
+        if city in location_lower:
+            # Ajouter une petite variation pour éviter la superposition
+            lat_offset = (hash(location_name) % 100 - 50) * 0.001  # ±0.05 degrés max
+            lng_offset = (hash(location_name) % 100 - 50) * 0.001
+            
+            final_lat = coords[0] + lat_offset
+            final_lng = coords[1] + lng_offset
+            
+            print(f"📍 Coordonnées par nom '{location_name}' -> {city}: ({final_lat:.4f}, {final_lng:.4f})")
+            return final_lat, final_lng
+    
+    # Si aucune ville reconnue, utiliser des coordonnées aléatoires en France
+    print(f"🎲 Coordonnées aléatoires pour '{location_name}'")
+    
+    # Zone France métropolitaine approximative
+    france_bounds = {
+        'lat_min': 41.3,
+        'lat_max': 51.1,
+        'lng_min': -5.1,
+        'lng_max': 9.6
+    }
+    
+    # Générer des coordonnées pseudo-aléatoires basées sur le hash du nom
+    hash_val = hash(location_name)
+    lat = france_bounds['lat_min'] + (hash_val % 1000) / 1000 * (france_bounds['lat_max'] - france_bounds['lat_min'])
+    lng = france_bounds['lng_min'] + ((hash_val // 1000) % 1000) / 1000 * (france_bounds['lng_max'] - france_bounds['lng_min'])
+    
+    return round(lat, 6), round(lng, 6)
+
+# 🔧 FONCTION DE TEST pour vérifier l'extraction
+@app.route('/test-coordinates')
+def test_coordinates():
+    """Route de test pour vérifier l'extraction de coordonnées"""
+    test_locations = [
+        "(-30.250704671553954, -57.14852536982011)",
+        "Paris (-32.89257311452824, -53.43179943666392)",
+        "Lyon (45.7640, 4.8357)",
+        "Rue de la Paix, Paris",
+        "Marseille",
+        "Localisation inconnue",
+        "",
+        None
+    ]
+    
+    results = []
+    for loc in test_locations:
+        lat, lng = extract_coordinates_from_location(loc)
+        results.append({
+            'input': loc,
+            'output': f"({lat}, {lng})",
+            'lat': lat,
+            'lng': lng
+        })
+    
+    return jsonify({
+        'test_results': results,
+        'status': 'Test coordinates extraction completed'
+    })
 
 @app.route('/api/image/<int:image_id>')
 def get_image_details(image_id):
