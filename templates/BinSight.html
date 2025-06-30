@@ -381,10 +381,7 @@ fileInput.addEventListener('change', function() {
     handleFiles(this.files);
 });
 
-// Fonction handleFiles connectée au backend avec support user_annotation
-// Correction dans BinSight.html - remplacez le script existant par celui-ci :
-
-// Dans la fonction handleFiles, corrigez cette partie :
+// ✨ NOUVELLE FONCTION avec preview de l'image
 function handleFiles(files) {
     console.log('=== HANDLE FILES APPELÉ ===');
     console.log('Nombre de fichiers:', files.length);
@@ -400,99 +397,9 @@ function handleFiles(files) {
         if (file.type.startsWith('image/')) {
             console.log('✅ Type de fichier valide');
             
-            const formData = new FormData();
-            formData.append('file', file);
+            // 🖼️ Afficher la preview de l'image
+            showImagePreview(file);
             
-            // Récupérer les valeurs des champs
-            const location = document.getElementById('location-input').value;
-            const binType = document.getElementById('bin-type-select').value;
-            const comment = document.getElementById('comment-textarea').value;
-            const userAnnotation = document.getElementById('status-select').value;
-            
-            console.log('Données du formulaire:', {
-                location: location,
-                binType: binType,
-                comment: comment,
-                userAnnotation: userAnnotation
-            });
-            
-            formData.append('location', location);
-            formData.append('bin_type', binType);
-            formData.append('comment', comment);
-            formData.append('user_annotation', userAnnotation);
-            
-            // Vérifier FormData
-            console.log('FormData créé:');
-            for (let pair of formData.entries()) {
-                if (pair[1] instanceof File) {
-                    console.log(pair[0] + ':', 'File -', pair[1].name);
-                } else {
-                    console.log(pair[0] + ':', pair[1]);
-                }
-            }
-            
-            // Afficher indicateur de chargement
-            dropArea.innerHTML = `
-                <i class="fas fa-spinner fa-spin text-5xl text-green-500 mb-4"></i>
-                <h3 class="text-xl font-semibold mb-2">Analyse en cours...</h3>
-                <p class="text-gray-500">Extraction des caractéristiques et classification</p>
-            `;
-            
-            console.log('🚀 Envoi vers /upload...');
-            
-            fetch('/upload', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                console.log('📥 Réponse reçue:', {
-                    status: response.status,
-                    statusText: response.statusText,
-                    ok: response.ok
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('📊 Données JSON:', data);
-                
-                // Restaurer l'interface
-                resetUploadArea();
-                
-                if (data.success) {
-                    console.log('✅ Upload réussi !');
-                    
-                    // Afficher les résultats
-                    showAnalysisResults(data);
-                    
-                    // Rafraîchir les données
-                    loadStats();
-                    loadRecentReports();
-                    loadMapData();
-                    
-                    // Réinitialiser le formulaire
-                    resetForm();
-                    
-                    // Message de succès
-                    showSuccessMessage(data.message + (data.confidence ? ` (Confiance: ${data.confidence})` : ''));
-                } else {
-                    console.log('❌ Erreur serveur:', data.message);
-                    showErrorMessage('Erreur: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('❌ Erreur complète:', error);
-                resetUploadArea();
-                
-                if (error.message.includes('Failed to fetch')) {
-                    showErrorMessage('❌ Impossible de se connecter au serveur. Vérifiez que Flask tourne sur http://localhost:5000');
-                } else {
-                    showErrorMessage('❌ Erreur lors de l\'upload: ' + error.message);
-                }
-            });
         } else {
             console.log('❌ Type de fichier invalide:', file.type);
             showErrorMessage('❌ Veuillez sélectionner une image valide (JPG, PNG, JPEG).');
@@ -503,58 +410,202 @@ function handleFiles(files) {
     }
 }
 
-// Correction importante : Event listener pour le bouton submit
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 Page chargée - Initialisation...');
+// ✨ NOUVELLE FONCTION pour afficher la preview
+function showImagePreview(file) {
+    const reader = new FileReader();
     
-    // Tester la connexion au serveur
-    fetch('/test')
-        .then(response => response.json())
-        .then(data => {
-            console.log('✅ Test serveur réussi:', data);
-            showSuccessMessage('Connexion serveur OK');
-        })
-        .catch(error => {
-            console.error('❌ Test serveur échoué:', error);
-            showErrorMessage('Problème de connexion au serveur');
-        });
+    reader.onload = function(e) {
+        dropArea.innerHTML = `
+            <div class="w-full">
+                <!-- Preview de l'image -->
+                <div class="mb-6 text-center">
+                    <img src="${e.target.result}" alt="Preview" class="max-w-full max-h-80 mx-auto rounded-lg border-2 border-gray-300 object-contain shadow-lg">
+                </div>
+                
+                <!-- Informations sur le fichier -->
+                <div class="bg-gray-50 p-4 rounded-lg mb-6">
+                    <h4 class="font-semibold text-gray-800 mb-3">📷 Image sélectionnée</h4>
+                    <div class="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                        <div><strong>Nom :</strong> ${file.name}</div>
+                        <div><strong>Taille :</strong> ${(file.size / 1024).toFixed(1)} Ko</div>
+                        <div><strong>Type :</strong> ${file.type}</div>
+                        <div><strong>Dernière modification :</strong> ${new Date(file.lastModified).toLocaleDateString()}</div>
+                    </div>
+                </div>
+                
+                <!-- Boutons d'action -->
+                <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                    <button onclick="uploadCurrentImage()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition font-medium shadow-md">
+                        <i class="fas fa-paper-plane mr-2"></i>Envoyer le signalement
+                    </button>
+                    <button onclick="selectNewImage()" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition font-medium shadow-md">
+                        <i class="fas fa-exchange-alt mr-2"></i>Changer d'image
+                    </button>
+                    <button onclick="cancelImageUpload()" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition font-medium shadow-md">
+                        <i class="fas fa-times mr-2"></i>Annuler
+                    </button>
+                </div>
+                
+                <!-- Note d'aide -->
+                <div class="mt-4 text-center">
+                    <p class="text-sm text-gray-500">
+                        💡 Vérifiez que l'image est correcte avant d'envoyer le signalement
+                    </p>
+                </div>
+            </div>
+        `;
+    };
     
-    initMap();
-    initChart();
-    loadStats();
-    loadRecentReports();
+    reader.onerror = function() {
+        showErrorMessage('Erreur lors de la lecture du fichier');
+        resetUploadArea();
+    };
     
-    // CORRECTION IMPORTANTE : Event listener pour le bouton submit
-    const submitBtn = document.getElementById('submit-btn');
-    if (submitBtn) {
-        submitBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            console.log('🔘 Bouton submit cliqué');
-            
-            const fileInput = document.getElementById('file-input');
-            console.log('📁 FileInput trouvé:', !!fileInput);
-            
-            if (fileInput && fileInput.files && fileInput.files.length > 0) {
-                console.log('📁 Fichiers trouvés:', fileInput.files.length);
-                handleFiles(fileInput.files);
-            } else {
-                console.log('❌ Aucun fichier dans l\'input');
-                showErrorMessage('Veuillez d\'abord sélectionner une image.');
-            }
-        });
-        console.log('✅ Event listener submit attaché');
-    } else {
-        console.error('❌ Bouton submit non trouvé !');
+    reader.readAsDataURL(file);
+    
+    // Stocker le fichier pour l'upload ultérieur
+    window.currentFile = file;
+}
+
+// ✨ NOUVELLE FONCTION pour uploader l'image après preview
+function uploadCurrentImage() {
+    if (!window.currentFile) {
+        showErrorMessage('Aucune image sélectionnée');
+        return;
     }
     
-    // Actualiser les données toutes les 30 secondes
-    setInterval(() => {
-        loadStats();
-        loadRecentReports();
-    }, 30000);
-});
+    const file = window.currentFile;
+    console.log('🚀 Début upload de l\'image après preview...');
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // Récupérer les valeurs des champs du formulaire
+    const location = document.getElementById('location-input').value;
+    const binType = document.getElementById('bin-type-select').value;
+    const comment = document.getElementById('comment-textarea').value;
+    const userAnnotation = document.getElementById('status-select').value;
+    
+    console.log('Données du formulaire:', {
+        location: location,
+        binType: binType,
+        comment: comment,
+        userAnnotation: userAnnotation
+    });
+    
+    formData.append('location', location);
+    formData.append('bin_type', binType);
+    formData.append('comment', comment);
+    formData.append('user_annotation', userAnnotation);
+    
+    // Afficher indicateur de chargement avec animation
+    dropArea.innerHTML = `
+        <div class="w-full text-center">
+            <div class="mb-6">
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-4">
+                    <i class="fas fa-spinner fa-spin text-3xl text-green-600"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-800 mb-2">Analyse en cours...</h3>
+                <p class="text-gray-600 mb-4">Extraction des caractéristiques et classification IA</p>
+            </div>
+            
+            <!-- Barre de progression animée -->
+            <div class="bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
+                <div class="bg-green-500 h-3 rounded-full animate-pulse" style="width: 65%; animation: pulse 1.5s infinite;"></div>
+            </div>
+            
+            <div class="text-sm text-gray-500 space-y-1">
+                <p>📊 Analyse des caractéristiques visuelles...</p>
+                <p>🤖 Classification automatique en cours...</p>
+                <p>💾 Sauvegarde dans la base de données...</p>
+            </div>
+        </div>
+    `;
+    
+    fetch('/upload', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        console.log('📥 Réponse reçue:', {
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('📊 Données JSON:', data);
+        
+        // Restaurer l'interface
+        resetUploadArea();
+        
+        if (data.success) {
+            console.log('✅ Upload réussi !');
+            
+            // Afficher les résultats avec plus de détails
+            showAnalysisResults(data);
+            
+            // Rafraîchir toutes les données
+            loadStats();
+            loadRecentReports();
+            loadMapData();
+            
+            // Réinitialiser le formulaire
+            resetForm();
+            
+            // Nettoyer le fichier stocké
+            window.currentFile = null;
+            
+            // Message de succès personnalisé
+            const confidence = data.confidence || '0%';
+            const statusEmoji = data.classification === 'pleine' ? '🗑️' : '✨';
+            showSuccessMessage(`${statusEmoji} Signalement envoyé ! Poubelle classée comme "${data.classification}" (Confiance: ${confidence})`);
+        } else {
+            console.log('❌ Erreur serveur:', data.message);
+            showErrorMessage('Erreur serveur: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('❌ Erreur complète:', error);
+        resetUploadArea();
+        
+        if (error.message.includes('Failed to fetch')) {
+            showErrorMessage('❌ Impossible de se connecter au serveur. Vérifiez que Flask tourne sur http://localhost:5000');
+        } else if (error.message.includes('NetworkError')) {
+            showErrorMessage('❌ Erreur réseau. Vérifiez votre connexion internet.');
+        } else {
+            showErrorMessage('❌ Erreur lors de l\'upload: ' + error.message);
+        }
+    });
+}
 
-// Fonction pour réinitialiser la zone d'upload
+// ✨ FONCTION pour annuler l'upload
+function cancelImageUpload() {
+    window.currentFile = null;
+    resetUploadArea();
+    showSuccessMessage('Upload annulé');
+}
+
+// ✨ FONCTION pour sélectionner une nouvelle image
+function selectNewImage() {
+    window.currentFile = null;
+    resetUploadArea();
+    
+    // Déclencher automatiquement le sélecteur de fichier
+    setTimeout(() => {
+        const fileInput = document.getElementById('file-input');
+        if (fileInput) {
+            fileInput.click();
+        }
+    }, 100);
+}
+
+// Fonction améliorée pour réinitialiser la zone d'upload
 function resetUploadArea() {
     dropArea.innerHTML = `
         <i class="fas fa-cloud-upload-alt text-5xl text-green-500 mb-4"></i>
@@ -564,14 +615,36 @@ function resetUploadArea() {
         <label for="file-input" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg cursor-pointer transition">
             <i class="fas fa-folder-open mr-2"></i>Parcourir les fichiers
         </label>
-        <p class="text-sm text-gray-500 mt-4">Formats supportés: JPG, PNG, JPEG</p>
+        <p class="text-sm text-gray-500 mt-4">Formats supportés: JPG, PNG, JPEG (max 16 Mo)</p>
     `;
     
     // Réattacher l'event listener au nouveau input
     const newFileInput = document.getElementById('file-input');
-    newFileInput.addEventListener('change', function() {
-        handleFiles(this.files);
+    if (newFileInput) {
+        newFileInput.addEventListener('change', function() {
+            handleFiles(this.files);
+        });
+    }
+    
+    // Réattacher les événements de drag and drop
+    attachDragAndDropEvents();
+}
+
+// Fonction pour réattacher les événements drag and drop
+function attachDragAndDropEvents() {
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
     });
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, highlight, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, unhighlight, false);
+    });
+
+    dropArea.addEventListener('drop', handleDrop, false);
 }
 
 // Fonction pour réinitialiser le formulaire
@@ -582,87 +655,159 @@ function resetForm() {
     document.getElementById('comment-textarea').value = '';
 }
 
-// Fonction pour afficher un message de succès
+// Fonction améliorée pour afficher un message de succès
 function showSuccessMessage(message) {
     const notification = document.createElement('div');
-    notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 max-w-md';
     notification.innerHTML = `
-        <div class="flex items-center">
-            <i class="fas fa-check-circle mr-2"></i>
-            <span>${message}</span>
-            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                <i class="fas fa-check-circle text-xl mr-3"></i>
+            </div>
+            <div class="flex-1">
+                <span class="font-medium">${message}</span>
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200 flex-shrink-0">
                 <i class="fas fa-times"></i>
             </button>
         </div>
     `;
     document.body.appendChild(notification);
     
-    // Supprimer automatiquement après 5 secondes
+    // Animation d'entrée
+    setTimeout(() => {
+        notification.style.transform = 'translateX(0)';
+        notification.style.opacity = '1';
+    }, 100);
+    
+    // Supprimer automatiquement après 7 secondes
     setTimeout(() => {
         if (notification.parentElement) {
-            notification.remove();
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateX(100%)';
+            setTimeout(() => notification.remove(), 300);
         }
-    }, 5000);
+    }, 7000);
 }
 
-// Fonction pour afficher un message d'erreur
+// Fonction améliorée pour afficher un message d'erreur
 function showErrorMessage(message) {
     const notification = document.createElement('div');
-    notification.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    notification.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 max-w-md';
     notification.innerHTML = `
-        <div class="flex items-center">
-            <i class="fas fa-exclamation-triangle mr-2"></i>
-            <span>${message}</span>
-            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-triangle text-xl mr-3"></i>
+            </div>
+            <div class="flex-1">
+                <span class="font-medium">${message}</span>
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200 flex-shrink-0">
                 <i class="fas fa-times"></i>
             </button>
         </div>
     `;
     document.body.appendChild(notification);
     
-    // Supprimer automatiquement après 5 secondes
+    // Animation d'entrée
+    setTimeout(() => {
+        notification.style.transform = 'translateX(0)';
+        notification.style.opacity = '1';
+    }, 100);
+    
+    // Supprimer automatiquement après 7 secondes
     setTimeout(() => {
         if (notification.parentElement) {
-            notification.remove();
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateX(100%)';
+            setTimeout(() => notification.remove(), 300);
         }
-    }, 5000);
+    }, 7000);
 }
 
-// Fonction pour afficher les résultats d'analyse
+// Fonction améliorée pour afficher les résultats d'analyse
 function showAnalysisResults(data) {
     const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
     modal.innerHTML = `
-        <div class="bg-white p-6 rounded-lg max-w-md w-full mx-4">
-            <h3 class="text-xl font-bold mb-4">Résultats de l'analyse</h3>
-            <img src="${data.image_url}" class="w-full h-48 object-cover rounded mb-4" alt="Image analysée">
-            <div class="space-y-2">
-                <p><strong>Classification:</strong> Poubelle ${data.classification}</p>
-                <p><strong>Confiance:</strong> ${data.confidence}</p>
-                <p><strong>Source:</strong> ${data.is_user_annotation ? 'Annotation utilisateur' : 'Intelligence artificielle'}</p>
-                <p><strong>Dimensions:</strong> ${data.features.width}x${data.features.height}px</p>
-                <p><strong>Taille:</strong> ${(data.features.file_size / 1024).toFixed(1)} Ko</p>
-                <p><strong>Luminosité:</strong> ${data.features.brightness.toFixed(1)}</p>
+        <div class="bg-white p-6 rounded-lg max-w-lg w-full max-h-screen overflow-y-auto">
+            <!-- En-tête avec icône de succès -->
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                    <i class="fas fa-check-circle text-3xl text-green-600"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900">Analyse terminée !</h3>
+                <p class="text-gray-600 mt-2">Votre signalement a été traité avec succès</p>
             </div>
+            
+            <!-- Image analysée -->
+            <div class="mb-6">
+                <img src="${data.image_url}" class="w-full h-48 object-cover rounded-lg border shadow-sm" alt="Image analysée">
+            </div>
+            
+            <!-- Résultats principaux -->
+            <div class="bg-gray-50 p-4 rounded-lg mb-6">
+                <h4 class="font-semibold mb-3 text-gray-800 flex items-center">
+                    <i class="fas fa-brain mr-2 text-blue-600"></i>Résultats de l'analyse IA
+                </h4>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Classification :</span>
+                        <span class="font-bold text-lg ${data.classification === 'pleine' ? 'text-red-600' : 'text-green-600'}">
+                            ${data.classification === 'pleine' ? '🗑️' : '✨'} Poubelle ${data.classification}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Niveau de confiance :</span>
+                        <span class="font-medium text-blue-600">${data.confidence}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Source :</span>
+                        <span class="font-medium">${data.is_user_annotation ? '👤 Annotation utilisateur' : '🤖 Intelligence artificielle'}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Détails techniques -->
+            <div class="bg-blue-50 p-4 rounded-lg mb-6">
+                <h4 class="font-semibold mb-3 text-gray-800 flex items-center">
+                    <i class="fas fa-info-circle mr-2 text-blue-600"></i>Détails techniques
+                </h4>
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div class="text-gray-600">Dimensions :</div>
+                    <div class="font-medium">${data.features.width} × ${data.features.height} px</div>
+                    <div class="text-gray-600">Taille du fichier :</div>
+                    <div class="font-medium">${(data.features.file_size / 1024).toFixed(1)} Ko</div>
+                    <div class="text-gray-600">Luminosité moyenne :</div>
+                    <div class="font-medium">${data.features.brightness.toFixed(1)}</div>
+                    <div class="text-gray-600">Niveau de contraste :</div>
+                    <div class="font-medium">${data.features.contrast_level.toFixed(1)}</div>
+                </div>
+            </div>
+            
+            <!-- Actions de correction (seulement pour l'IA) -->
             ${!data.is_user_annotation ? `
-            <div class="mt-6 flex space-x-2">
-                <button onclick="annotateImage(${data.image_id}, 'pleine')" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
-                    Corriger: Pleine
-                </button>
-                <button onclick="annotateImage(${data.image_id}, 'vide')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-                    Corriger: Vide
-                </button>
-                <button onclick="closeModal(this)" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
-                    Fermer
+            <div class="border-t pt-4 mb-6">
+                <p class="text-sm text-gray-600 mb-3 text-center">
+                    <i class="fas fa-question-circle mr-1"></i>L'IA a-t-elle correctement classifié cette image ?
+                </p>
+                <div class="flex gap-2">
+                    <button onclick="annotateImage(${data.image_id}, 'pleine')" class="flex-1 bg-red-600 text-white px-4 py-3 rounded-lg hover:bg-red-700 transition font-medium">
+                        <i class="fas fa-times mr-2"></i>Non, elle est pleine
+                    </button>
+                    <button onclick="annotateImage(${data.image_id}, 'vide')" class="flex-1 bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition font-medium">
+                        <i class="fas fa-check mr-2"></i>Non, elle est vide
+                    </button>
+                </div>
+            </div>
+            ` : ''}
+            
+            <!-- Bouton de fermeture -->
+            <div class="text-center">
+                <button onclick="closeModal(this)" class="bg-gray-600 text-white px-8 py-3 rounded-lg hover:bg-gray-700 transition font-medium">
+                    <i class="fas fa-times mr-2"></i>Fermer
                 </button>
             </div>
-            ` : `
-            <div class="mt-6">
-                <button onclick="closeModal(this)" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full">
-                    Fermer
-                </button>
-            </div>
-            `}
         </div>
     `;
     document.body.appendChild(modal);
@@ -675,7 +820,7 @@ function annotateImage(imageId, annotation) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                showSuccessMessage(data.message);
+                showSuccessMessage(`✅ Correction enregistrée ! L'image a été annotée comme "${annotation}"`);
                 loadStats();
                 loadRecentReports();
                 loadMapData();
@@ -685,6 +830,9 @@ function annotateImage(imageId, annotation) {
             } else {
                 showErrorMessage('Erreur: ' + data.message);
             }
+        })
+        .catch(error => {
+            showErrorMessage('Erreur lors de l\'annotation: ' + error.message);
         });
 }
 
@@ -693,292 +841,73 @@ function closeModal(button) {
     modal.remove();
 }
 
-// Charger la carte avec des données réelles
-function initMap() {
-    map = L.map('map').setView([48.8566, 2.3522], 13);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
-
-    loadMapData();
-}
-
-// Fonction pour charger les données de la carte
-function loadMapData() {
-    fetch('/api/poubelles')
-        .then(response => response.json())
-        .then(data => {
-            // Effacer les marqueurs existants
-            map.eachLayer(layer => {
-                if (layer instanceof L.Marker) {
-                    map.removeLayer(layer);
-                }
-            });
-            
-            poubelles = data;
-            
-            const greenIcon = L.divIcon({
-                html: '<div style="background-color: #4ade80; width: 12px; height: 12px; border-radius: 50%;"></div>',
-                className: '',
-                iconSize: [12, 12]
-            });
-
-            const redIcon = L.divIcon({
-                html: '<div style="background-color: #ef4444; width: 12px; height: 12px; border-radius: 50%; animation: pulse 2s infinite;"></div>',
-                className: '',
-                iconSize: [12, 12]
-            });
-            
-            poubelles.forEach(poubelle => {
-                const icon = poubelle.status === 'pleine' ? redIcon : greenIcon;
-                const marker = L.marker([poubelle.lat, poubelle.lng], { icon }).addTo(map);
-                
-                const popupContent = `
-                    <div class="p-2">
-                        <h3 class="font-bold mb-2">${poubelle.location}</h3>
-                        <p class="mb-1">Statut: <span class="font-medium ${poubelle.status === 'pleine' ? 'text-red-600' : 'text-green-600'}">${poubelle.status}</span></p>
-                        <p class="mb-1">Signalé il y a: ${poubelle.time}</p>
-                        <p class="mb-1">Confiance: ${(poubelle.confidence * 100).toFixed(1)}%</p>
-                        <div class="mt-2">
-                            <button class="bg-green-600 text-white px-2 py-1 rounded text-sm hover:bg-green-700 transition" onclick="viewImageDetails(${poubelle.id})">
-                                <i class="fas fa-eye mr-1"></i>Voir
-                            </button>
-                            <button class="bg-blue-600 text-white px-2 py-1 rounded text-sm hover:bg-blue-700 transition ml-2" onclick="handleAction('process', '${poubelle.location}')">
-                                <i class="fas fa-check mr-1"></i>Traiter
-                            </button>
-                        </div>
-                    </div>
-                `;
-                marker.bindPopup(popupContent);
-            });
-            
-            if (poubelles.length > 0) {
-                const bounds = poubelles.map(p => [p.lat, p.lng]);
-                map.fitBounds(bounds, { padding: [50, 50] });
-            }
-        })
-        .catch(error => console.error('Erreur chargement carte:', error));
-}
-
-// Fonction pour voir les détails d'une image
-function viewImageDetails(imageId) {
-    fetch(`/api/image/${imageId}`)
-        .then(response => response.json())
-        .then(data => {
-            const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-            modal.innerHTML = `
-                <div class="bg-white p-6 rounded-lg max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
-                    <h3 class="text-xl font-bold mb-4">Détails de l'image</h3>
-                    <img src="${data.image_url}" class="w-full h-64 object-cover rounded mb-4" alt="Image">
-                    <div class="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <p><strong>Classification auto:</strong> ${data.auto_classification || 'Aucune'}</p>
-                            <p><strong>Annotation manuelle:</strong> ${data.manual_annotation || 'Aucune'}</p>
-                            <p><strong>Annotation utilisateur:</strong> ${data.user_annotation || 'Aucune'}</p>
-                            <p><strong>Confiance:</strong> ${(data.confidence * 100).toFixed(1)}%</p>
-                            <p><strong>Localisation:</strong> ${data.location || 'Non spécifiée'}</p>
-                            <p><strong>Type:</strong> ${data.bin_type || 'Standard'}</p>
-                            <p><strong>Date:</strong> ${data.upload_date}</p>
-                        </div>
-                        <div>
-                            <p><strong>Taille fichier:</strong> ${(data.file_size / 1024).toFixed(1)} Ko</p>
-                            <p><strong>Dimensions:</strong> ${data.width}x${data.height}px</p>
-                            <p><strong>Luminosité:</strong> ${data.brightness.toFixed(1)}</p>
-                            <p><strong>Contraste:</strong> ${data.contrast_level.toFixed(1)}</p>
-                            <p><strong>Couleur moyenne:</strong> RGB(${data.avg_red.toFixed(0)}, ${data.avg_green.toFixed(0)}, ${data.avg_blue.toFixed(0)})</p>
-                            <p><strong>Densité contours:</strong> ${(data.edge_density * 100).toFixed(1)}%</p>
-                        </div>
-                    </div>
-                    ${data.comment ? `<p class="mt-4"><strong>Commentaire:</strong> ${data.comment}</p>` : ''}
-                    <div class="mt-6 flex space-x-2">
-                        <button onclick="annotateImage(${data.id}, 'pleine')" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
-                            Annoter: Pleine
-                        </button>
-                        <button onclick="annotateImage(${data.id}, 'vide')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-                            Annoter: Vide
-                        </button>
-                        <button onclick="closeModal(this)" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
-                            Fermer
-                        </button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        })
-        .catch(error => console.error('Erreur détails image:', error));
-}
-
-function handleAction(action, location) {
-    if (action === 'view') {
-        showSuccessMessage(`Affichage des détails pour la poubelle à ${location}`);
-    } else if (action === 'process') {
-        showSuccessMessage(`Traitement de la poubelle à ${location}`);
-    }
-}
-
-// Charger les signalements récents depuis l'API
-function loadRecentReports() {
-    fetch('/api/recent_reports')
-        .then(response => response.json())
-        .then(data => {
-            const tbody = document.querySelector("section table tbody");
-            const noReports = document.getElementById('no-reports');
-            
-            tbody.innerHTML = "";
-
-            if (data.length === 0) {
-                noReports.style.display = 'block';
-            } else {
-                noReports.style.display = 'none';
-                data.forEach((report, index) => {
-                    const row = document.createElement("tr");
-                    row.innerHTML = `
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="flex-shrink-0 h-10 w-10">
-                                <img class="h-10 w-10 rounded-full object-cover" 
-                                     src="${report.image_url || `https://source.unsplash.com/50x50/?trash,bin&sig=${index}`}" 
-                                     alt="">
-                            </div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-medium text-gray-900">${report.location}</div>
-                            <div class="text-sm text-gray-500">${report.bin_type}</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="status-indicator ${report.status === 'pleine' ? 'status-full' : 'status-empty'}"></span>
-                            <span class="text-sm font-medium ${report.status === 'pleine' ? 'text-red-600' : 'text-green-600'}">${report.status.charAt(0).toUpperCase() + report.status.slice(1)}</span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${report.date}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button onclick="viewImageDetails(${report.id})" class="text-green-600 hover:text-green-900 mr-3">Voir</button>
-                            <button onclick="handleAction('process', '${report.location}')" class="text-blue-600 hover:text-blue-900">Traiter</button>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                });
-            }
-        })
-        .catch(error => console.error('Erreur chargement signalements:', error));
-}
-
-// Charger les statistiques depuis l'API
-function loadStats() {
-    fetch('/api/stats')
-        .then(response => response.json())
-        .then(data => {
-            // Mettre à jour les statistiques dans l'interface
-            const statsElements = document.querySelectorAll('.text-3xl.font-bold');
-            if (statsElements[0]) statsElements[0].textContent = data.today_uploads;
-            if (statsElements[1]) statsElements[1].textContent = data.full_bins;
-            if (statsElements[2]) statsElements[2].textContent = data.accuracy + '%';
-            
-            // Mettre à jour le graphique avec les données réelles
-            updateChart(data.monthly_data);
-        })
-        .catch(error => console.error('Erreur chargement stats:', error));
-}
-
-// Mettre à jour le graphique avec des données réelles
-function updateChart(monthlyData) {
-    if (window.statsChart) {
-        // Préparer les données pour Chart.js
-        const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
-        const emptyData = new Array(12).fill(0);
-        const fullData = new Array(12).fill(0);
-        
-        monthlyData.forEach(item => {
-            const monthIndex = parseInt(item[0]) - 1; // item[0] est le mois
-            emptyData[monthIndex] = item[2]; // item[2] est empty
-            fullData[monthIndex] = item[3];  // item[3] est full
-        });
-        
-        window.statsChart.data.datasets[0].data = emptyData;
-        window.statsChart.data.datasets[1].data = fullData;
-        window.statsChart.update();
-    }
-}
-
-// Initialiser le graphique Chart.js
-function initChart() {
-    const ctx = document.getElementById('statsChart').getContext('2d');
-    window.statsChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'],
-            datasets: [
-                {
-                    label: 'Poubelles vides',
-                    data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    borderColor: '#4ade80',
-                    backgroundColor: 'rgba(74, 222, 128, 0.1)',
-                    tension: 0.3,
-                    fill: true
-                },
-                {
-                    label: 'Poubelles pleines',
-                    data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    borderColor: '#ef4444',
-                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                    tension: 0.3,
-                    fill: true
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Évolution des signalements par mois',
-                    font: {
-                        size: 16
-                    }
-                },
-                legend: {
-                    position: 'top',
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Nombre de signalements'
-                    }
-                }
-            }
-        }
-    });
-}
-
 // Initialisation au chargement de la page
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 Page chargée - Initialisation...');
+    
+    // Test de connexion serveur
+    fetch('/test')
+        .then(response => response.json())
+        .then(data => {
+            console.log('✅ Test serveur réussi:', data);
+            showSuccessMessage('✅ Connexion serveur établie');
+        })
+        .catch(error => {
+            console.error('❌ Test serveur échoué:', error);
+            showErrorMessage('❌ Problème de connexion au serveur');
+        });
+    
     initMap();
     initChart();
     loadStats();
     loadRecentReports();
     
-    // Event listener pour le bouton submit
-    document.getElementById('submit-btn').addEventListener('click', function(e) {
-        e.preventDefault();
-        const fileInput = document.getElementById('file-input');
-        if (fileInput.files.length > 0) {
-            handleFiles(fileInput.files);
-        } else {
-            showErrorMessage('Veuillez d\'abord sélectionner une image.');
-        }
-    });
+    // Attacher les événements de drag and drop
+    attachDragAndDropEvents();
     
-    // Actualiser les données toutes les 30 secondes
+    // Event listener pour le bouton submit principal
+    const submitBtn = document.getElementById('submit-btn');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('🔘 Bouton submit principal cliqué');
+            
+            if (window.currentFile) {
+                // Si une image est en preview, l'uploader directement
+                uploadCurrentImage();
+            } else {
+                // Sinon, vérifier s'il y a une image dans l'input
+                const fileInput = document.getElementById('file-input');
+                if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                    handleFiles(fileInput.files);
+                } else {
+                    showErrorMessage('⚠️ Veuillez d\'abord sélectionner une image.');
+                }
+            }
+        });
+        console.log('✅ Event listener submit attaché');
+    }
+    
+    // Actualiser les données périodiquement
     setInterval(() => {
         loadStats();
         loadRecentReports();
     }, 30000);
 });
-</script>
 
-</body>
-</html>
+// Reste des fonctions inchangées (initMap, loadMapData, etc.)
+// [Gardez toutes les autres fonctions comme elles sont]
+
+// Charger la carte avec des données réelles
+function initMap() {
+    map = L.map('map').setView([48.8566, 2.3522], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    loadMapData();
+}
+
+// [Continuez avec toutes les autres fonctions existantes...]
+// (loadMapData, viewImageDetails, handleAction, loadRecentReports, loadStats, updateChart, initChart)
+
+</script>
