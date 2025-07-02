@@ -285,7 +285,7 @@ def upload_file():
         comment = request.form.get('comment', '').strip()
         user_annotation = request.form.get('user_annotation', '').strip()
 
-
+        
         p1 = (-30.250704671553954, -57.14852536982011)
         p2 = (-32.89257311452824, -53.43179943666392)
         p3 = (-34.88099515435342, -54.89218198697705)
