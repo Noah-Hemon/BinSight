@@ -87,10 +87,10 @@
                 Une solution innovante pour détecter l'état des poubelles et améliorer la gestion des déchets urbains
             </p>
             <div class="flex flex-col md:flex-row justify-center gap-4">
-                <button class="bg-white text-green-700 hover:bg-gray-100 px-6 py-3 rounded-lg font-bold text-lg transition shadow-lg">
+                <button id="scroll-report-btn" class="bg-white text-green-700 hover:bg-gray-100 px-6 py-3 rounded-lg font-bold text-lg transition shadow-lg">
                     <i class="fas fa-upload mr-2"></i>Signaler une poubelle
                 </button>
-                <button class="bg-transparent border-2 border-white hover:bg-white hover:text-green-700 px-6 py-3 rounded-lg font-bold text-lg transition">
+                <button id="scroll-map-btn" class="bg-transparent border-2 border-white hover:bg-white hover:text-green-700 px-6 py-3 rounded-lg font-bold text-lg transition">
                     <i class="fas fa-map-marked-alt mr-2"></i>Voir la carte
                 </button>
             </div>
@@ -100,7 +100,7 @@
     <!-- Main Content -->
     <main class="container mx-auto px-4 py-12">
         <!-- Upload Section -->
-        <section class="mb-16">
+        <section id="signalement-section" class="mb-16">
             <h2 class="text-3xl font-bold mb-8 text-center">Signaler une poubelle</h2>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div class="file-upload" id="drop-area">
@@ -152,7 +152,7 @@
         </section>
 
         <!-- Map Section -->
-        <section class="mb-16">
+        <section id="map-section" class="mb-16">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-3xl font-bold">Cartographie des poubelles</h2>
                 <div class="flex space-x-2">
@@ -1616,6 +1616,22 @@ document.addEventListener('DOMContentLoaded', () => {
         loadStats();
         loadRecentReports();
     }, 30000);
+    
+    // Scroll smooth pour les boutons du hero
+    const scrollReportBtn = document.getElementById('scroll-report-btn');
+    const scrollMapBtn = document.getElementById('scroll-map-btn');
+    if (scrollReportBtn) {
+        scrollReportBtn.addEventListener('click', function() {
+            const section = document.getElementById('signalement-section');
+            if (section) section.scrollIntoView({ behavior: 'smooth' });
+        });
+    }
+    if (scrollMapBtn) {
+        scrollMapBtn.addEventListener('click', function() {
+            const section = document.getElementById('map-section');
+            if (section) section.scrollIntoView({ behavior: 'smooth' });
+        });
+    }
 });
 
 
