@@ -187,7 +187,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-500">Signalements aujourd'hui</p>
-                            <h3 class="text-3xl font-bold mt-2">0</h3>
+                            <h3 id="today-uploads" class="text-3xl font-bold mt-2">0</h3>
                         </div>
                         <div class="bg-green-100 p-3 rounded-full">
                             <i class="fas fa-upload text-green-600 text-xl"></i>
@@ -203,7 +203,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-500">Poubelles pleines</p>
-                            <h3 class="text-3xl font-bold mt-2">0</h3>
+                            <h3 id="full-bins" class="text-3xl font-bold mt-2">0</h3>
                         </div>
                         <div class="bg-red-100 p-3 rounded-full">
                             <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
@@ -219,7 +219,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-500">Taux de précision</p>
-                            <h3 class="text-3xl font-bold mt-2">0%</h3>
+                            <h3 id="accuracy" class="text-3xl font-bold mt-2">0%</h3>
                         </div>
                         <div class="bg-blue-100 p-3 rounded-full">
                             <i class="fas fa-brain text-blue-600 text-xl"></i>
@@ -884,45 +884,40 @@ function loadStats() {
 // Fonction pour mettre à jour les cartes de statistiques
 function updateStatsCards(data) {
     // Signalements aujourd'hui
-    const todayUploadsElement = document.querySelector('.bg-white .text-3xl');
+    const todayUploadsElement = document.getElementById('today-uploads');
     if (todayUploadsElement) {
         todayUploadsElement.textContent = data.today_uploads || 0;
     }
-    
     // Poubelles pleines
-    const fullBinsElements = document.querySelectorAll('.bg-white .text-3xl');
-    if (fullBinsElements[1]) {
-        fullBinsElements[1].textContent = data.full_bins || 0;
-        
+    const fullBinsElement = document.getElementById('full-bins');
+    if (fullBinsElement) {
+        fullBinsElement.textContent = data.full_bins || 0;
         // Ajouter une animation si le nombre est élevé
         if (data.full_bins > 5) {
-            fullBinsElements[1].classList.add('text-red-600');
-            fullBinsElements[1].parentElement.parentElement.classList.add('border-l-4', 'border-red-500');
+            fullBinsElement.classList.add('text-red-600');
+            fullBinsElement.parentElement.parentElement.classList.add('border-l-4', 'border-red-500');
         } else {
-            fullBinsElements[1].classList.remove('text-red-600');
-            fullBinsElements[1].parentElement.parentElement.classList.remove('border-l-4', 'border-red-500');
+            fullBinsElement.classList.remove('text-red-600');
+            fullBinsElement.parentElement.parentElement.classList.remove('border-l-4', 'border-red-500');
         }
     }
-    
     // Taux de précision
-    const accuracyElements = document.querySelectorAll('.bg-white .text-3xl');
-    if (accuracyElements[2]) {
+    const accuracyElement = document.getElementById('accuracy');
+    if (accuracyElement) {
         const accuracy = data.accuracy || 0;
-        accuracyElements[2].textContent = `${accuracy}%`;
-        
+        accuracyElement.textContent = `${accuracy}%`;
         // Changer la couleur selon la précision
         if (accuracy >= 80) {
-            accuracyElements[2].classList.add('text-green-600');
-            accuracyElements[2].classList.remove('text-yellow-600', 'text-red-600');
+            accuracyElement.classList.add('text-green-600');
+            accuracyElement.classList.remove('text-yellow-600', 'text-red-600');
         } else if (accuracy >= 60) {
-            accuracyElements[2].classList.add('text-yellow-600');
-            accuracyElements[2].classList.remove('text-green-600', 'text-red-600');
+            accuracyElement.classList.add('text-yellow-600');
+            accuracyElement.classList.remove('text-green-600', 'text-red-600');
         } else {
-            accuracyElements[2].classList.add('text-red-600');
-            accuracyElements[2].classList.remove('text-green-600', 'text-yellow-600');
+            accuracyElement.classList.add('text-red-600');
+            accuracyElement.classList.remove('text-green-600', 'text-yellow-600');
         }
     }
-    
     // Mettre à jour les indicateurs de tendance
     updateTrendIndicators(data);
 }
@@ -1060,18 +1055,16 @@ function initChart() {
         console.error('❌ Element canvas #statsChart non trouvé');
         return;
     }
-    
     console.log('📈 Initialisation du graphique...');
-    
     // Détruire le graphique existant s'il y en a un
-    if (window.statsChart) {
+    if (window.statsChart && typeof window.statsChart.destroy === 'function') {
         window.statsChart.destroy();
     }
-    
     window.statsChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'],
+            labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun',
+                'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'],
             datasets: [
                 {
                     label: 'Total signalements',
@@ -1150,7 +1143,6 @@ function initChart() {
             }
         }
     });
-    
     console.log('✅ Graphique initialisé');
 }
 
