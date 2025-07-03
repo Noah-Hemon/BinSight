@@ -70,9 +70,15 @@
                 <a href="/about" class="hover:text-green-200 font-medium">L'équipe de BinSight</a>
             </nav>
             <div class="flex items-center space-x-4">
-                <button class="bg-green-700 hover:bg-green-800 px-4 py-2 rounded-lg font-medium transition">
-                    <i class="fas fa-user mr-2"></i>Connexion
-                </button>
+                {% if is_admin %}
+                    <a href="/logout" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg font-medium transition text-white">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Déconnexion
+                    </a>
+                {% else %}
+                    <a href="/login" class="bg-green-700 hover:bg-green-800 px-4 py-2 rounded-lg font-medium transition text-white">
+                        <i class="fas fa-user mr-2"></i>Connexion
+                    </a>
+                {% endif %}
                 <button class="md:hidden text-2xl" id="mobile-menu-button">
                     <i class="fas fa-bars"></i>
                 </button>
@@ -277,6 +283,7 @@
         </section>
 
         <!-- NOUVEAU: Section Outils d'Administration -->
+        {% if is_admin %}
         <section class="mb-16">
             <h2 class="text-3xl font-bold mb-6">Outils d'Administration</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -366,6 +373,7 @@
                 </div>
             </div>
         </section>
+        {% endif %}
     </main>
 
     <!-- About Section -->
@@ -424,7 +432,7 @@
             </div>
             <div class="border-t border-gray-700 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
                 <p class="text-gray-400 mb-4 md:mb-0">
-                    © 2023 BinSight. Tous droits réservés.
+                    © 2025 BinSight. Tous droits réservés.
                 </p>
                 <div class="flex space-x-6">
                     <a href="https://en.wikipedia.org/wiki/Special:Random" class="text-gray-400 hover:text-white transition">

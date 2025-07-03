@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, url_for, send_from_directory
+from flask import Flask, render_template, request, jsonify, url_for, send_from_directory, redirect, session, flash
 import os
 import sqlite3
 from werkzeug.utils import secure_filename
@@ -24,6 +24,7 @@ app.config['SECRET_KEY'] = 'binsight-secret-key-2023'
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'}
+app.secret_key = 'binsight-secret-key-2023'  # déjà présent, mais s'assurer que la session fonctionne
 
 # NOUVEAU: Initialisation de SocketIO
 socketio = SocketIO(app)
@@ -2028,6 +2029,71 @@ def retrain_ia():
 @app.route('/about')
 def about():
     return render_template('about.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        if username == 'admin' and password == 'admin':
+            session['logged_in'] = True
+            return redirect(url_for('index'))
+        else:
+            error = 'Identifiants invalides'
+    # Formulaire HTML stylisé avec Tailwind et feedback visuel
+    html = f'''
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Connexion Admin - BinSight</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <style>
+            body {{ background: linear-gradient(120deg, #4ade80 0%, #2563eb 100%); }}
+            .login-card {{ box-shadow: 0 8px 32px #0003, 0 0 0 4px #4ade80cc; }}
+            .login-card input:focus {{ border-color: #2563eb; box-shadow: 0 0 0 2px #2563eb33; }}
+            .login-card button:active {{ transform: scale(0.98); }}
+        </style>
+    </head>
+    <body class="flex items-center justify-center min-h-screen">
+        <div class="login-card bg-white p-8 rounded-2xl w-full max-w-md flex flex-col items-center">
+            <div class="mb-6 flex flex-col items-center">
+                <img src="/static/img/logo_binsight.png" alt="Logo BinSight" class="h-16 mb-2">
+                <h2 class="text-2xl font-bold text-gray-800">Connexion Admin</h2>
+                <p class="text-gray-500 text-sm mt-1">Accès réservé à l'administration</p>
+            </div>
+            <form method="POST" class="w-full">
+                <div class="mb-4">
+                    <label class="block text-gray-700 font-medium mb-1">Nom d'utilisateur</label>
+                    <input type="text" name="username" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 transition" required autofocus placeholder="admin">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-gray-700 font-medium mb-1">Mot de passe</label>
+                    <input type="password" name="password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 transition" required placeholder="admin">
+                </div>
+                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-semibold text-lg shadow transition flex items-center justify-center gap-2">
+                    <i class="fas fa-sign-in-alt"></i> Se connecter
+                </button>
+            </form>
+            {f'<div class=\"mt-4 text-red-600 font-semibold\">{error}</div>' if error else ''}
+            <div class="mt-6 text-center text-gray-400 text-xs">© 2025 BinSight</div>
+        </div>
+    </body>
+    </html>
+    '''
+    return html
+
+@app.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    return redirect(url_for('index'))
+
+@app.context_processor
+def inject_is_admin():
+    return dict(is_admin=session.get('logged_in', False))
 
 if __name__ == '__main__':
     print("🚀 Initialisation de l'application...")
