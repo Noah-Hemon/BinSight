@@ -1,7 +1,10 @@
 Flask
+Flask-SocketIO
+eventlet
+numpy
+opencv-python
 Pillow
 scikit-image
 requests
-numpy
-opencv-python
-Flask-SocketIO
+scikit-learn
+joblib
