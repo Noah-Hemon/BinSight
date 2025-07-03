@@ -56,10 +56,10 @@
                 <h1 class="text-2xl font-bold">BinSight</h1>
             </div>
             <nav class="hidden md:flex space-x-6">
-                <a href="#" class="hover:text-green-200 font-medium">Accueil</a>
-                <a href="#" class="hover:text-green-200 font-medium">Signalements</a>
-                <a href="#" class="hover:text-green-200 font-medium">Statistiques</a>
-                <a href="#" class="hover:text-green-200 font-medium">À propos</a>
+                <a href="#hero-section" class="hover:text-green-200 font-medium">Accueil</a>
+                <a href="#signalement-section" class="hover:text-green-200 font-medium">Signalements</a>
+                <a href="#stats-section" class="hover:text-green-200 font-medium">Statistiques</a>
+                <a href="#about-section" class="hover:text-green-200 font-medium">À propos</a>
             </nav>
             <div class="flex items-center space-x-4">
                 <button class="bg-green-700 hover:bg-green-800 px-4 py-2 rounded-lg font-medium transition">
@@ -72,15 +72,15 @@
         </div>
         <!-- Mobile menu -->
         <div class="md:hidden hidden bg-green-700 px-4 py-2" id="mobile-menu">
-            <a href="#" class="block py-2 hover:text-green-200">Accueil</a>
-            <a href="#" class="block py-2 hover:text-green-200">Signalements</a>
-            <a href="#" class="block py-2 hover:text-green-200">Statistiques</a>
-            <a href="#" class="block py-2 hover:text-green-200">À propos</a>
+            <a href="#hero-section" class="block py-2 hover:text-green-200">Accueil</a>
+            <a href="#signalement-section" class="block py-2 hover:text-green-200">Signalements</a>
+            <a href="#stats-section" class="block py-2 hover:text-green-200">Statistiques</a>
+            <a href="#about-section" class="block py-2 hover:text-green-200">À propos</a>
         </div>
     </header>
 
     <!-- Hero Section -->
-    <section class="bg-gradient-to-r from-green-500 to-green-700 text-white py-16">
+    <section id="hero-section" class="bg-gradient-to-r from-green-500 to-green-700 text-white py-16">
         <div class="container mx-auto px-4 text-center">
             <h2 class="text-4xl font-bold mb-4">Surveillance Intelligente des Poubelles Publiques</h2>
             <p class="text-xl mb-8 max-w-3xl mx-auto">
@@ -180,7 +180,7 @@
         </section>
 
         <!-- Stats Section -->
-        <section class="mb-16">
+        <section id="stats-section" class="mb-16">
             <h2 class="text-3xl font-bold mb-8 text-center">Statistiques et analyses</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div class="bg-white p-6 rounded-xl shadow-lg">
@@ -263,6 +263,16 @@
             </div>
         </section>
     </main>
+
+    <!-- About Section -->
+    <section id="about-section" class="bg-white py-16">
+        <div class="container mx-auto px-4 text-center">
+            <h2 class="text-3xl font-bold mb-4">À propos de BinSight</h2>
+            <p class="text-lg text-gray-700 max-w-2xl mx-auto">
+                BinSight est une solution innovante de surveillance intelligente des poubelles publiques, utilisant l'intelligence artificielle pour améliorer la gestion des déchets urbains. Notre mission est de rendre les villes plus propres et plus efficaces grâce à la technologie.
+            </p>
+        </div>
+    </section>
 
     <!-- Footer -->
     <footer class="bg-gray-800 text-white py-12">
@@ -2038,4 +2048,21 @@ function initMap() {
 // [Continuez avec toutes les autres fonctions existantes...]
 // (loadMapData, viewImageDetails, handleAction, loadRecentReports, loadStats, updateChart, initChart)
 
+// Scroll smooth pour tous les liens du menu header et mobile
+// (à placer dans le DOMContentLoaded ou à la fin du script)
+document.querySelectorAll('a[href^="#"]').forEach(link => {
+    link.addEventListener('click', function(e) {
+        const targetId = this.getAttribute('href').substring(1);
+        const target = document.getElementById(targetId);
+        if (target) {
+            e.preventDefault();
+            target.scrollIntoView({ behavior: 'smooth' });
+            // Fermer le menu mobile si ouvert
+            const menu = document.getElementById('mobile-menu');
+            if (menu && !menu.classList.contains('hidden')) {
+                menu.classList.add('hidden');
+            }
+        }
+    });
+});
 </script>
