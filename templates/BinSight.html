@@ -67,6 +67,7 @@
                 <a href="#signalement-section" class="hover:text-green-200 font-medium">Signalements</a>
                 <a href="#stats-section" class="hover:text-green-200 font-medium">Statistiques</a>
                 <a href="#about-section" class="hover:text-green-200 font-medium">À propos</a>
+                <a href="/about" class="hover:text-green-200 font-medium">L'équipe de BinSight</a>
             </nav>
             <div class="flex items-center space-x-4">
                 <button class="bg-green-700 hover:bg-green-800 px-4 py-2 rounded-lg font-medium transition">
@@ -83,6 +84,7 @@
             <a href="#signalement-section" class="block py-2 hover:text-green-200">Signalements</a>
             <a href="#stats-section" class="block py-2 hover:text-green-200">Statistiques</a>
             <a href="#about-section" class="block py-2 hover:text-green-200">À propos</a>
+            <a href="/about" class="block py-2 hover:text-green-200">À propos de BinSight</a>
         </div>
     </header>
 
@@ -140,11 +142,11 @@
                         <div>
                             <label class="block text-gray-700 mb-2">État de la poubelle</label>
                             <select id="status-select" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
-                                <option value="">Laissez l'IA décider</option>
+                                <option value="" id="auto-classify-option">Laissez l'IA décider</option>
                                 <option value="pleine">Pleine</option>
                                 <option value="vide">Vide</option>
                             </select>
-                            <p class="text-sm text-gray-500 mt-1">Si vous ne sélectionnez rien, l'IA analysera automatiquement l'image</p>
+                            <p class="text-sm text-gray-500 mt-1" id="auto-classify-help">Si vous ne sélectionnez rien, l'IA analysera automatiquement l'image</p>
                         </div>
                         <div>
                             <label class="block text-gray-700 mb-2">Commentaire (optionnel)</label>
@@ -319,6 +321,49 @@
                         <i class="fas fa-sync-alt mr-2"></i>Lancer la ré-analyse
                     </button>
                 </div>
+
+                <!-- Outil 4: Suppression de toutes les images -->
+                <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col">
+                    <div class="flex-grow">
+                        <h3 class="text-xl font-bold text-gray-800">Suppression de toutes les images</h3>
+                        <p class="text-gray-600 mt-1">
+                            Supprime toutes les images et leurs données de la base de données et du serveur.
+                        </p>
+                    </div>
+                    <div id="delete-all-report-container" class="mt-4"></div>
+                    <button id="delete-all-btn" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition mt-4 w-full">
+                        <i class="fas fa-trash-alt mr-2"></i>Supprimer toutes les images
+                    </button>
+                </div>
+
+                <!-- Outil 5: Sélecteur de mode de classification -->
+                <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col">
+                    <div class="flex-grow">
+                        <h3 class="text-xl font-bold text-gray-800">Mode de classification</h3>
+                        <p class="text-gray-600 mt-1">
+                            Choisissez la méthode de classification utilisée pour les nouvelles images.
+                        </p>
+                        <select id="classifier-mode-select" class="mt-4 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 w-full">
+                            <option value="ia">IA (Intelligence Artificielle)</option>
+                            <option value="rules">Règles (logique experte)</option>
+                        </select>
+                        <div id="classifier-mode-status" class="mt-2 text-sm text-gray-500"></div>
+                    </div>
+                </div>
+
+                <!-- Outil 6: Réentraînement IA -->
+                <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col">
+                    <div class="flex-grow">
+                        <h3 class="text-xl font-bold text-gray-800">Réentraînement IA</h3>
+                        <p class="text-gray-600 mt-1">
+                            Relance l'entraînement du modèle IA sur les images labellisées.<br>
+                            Les métriques s'affichent dans la console serveur.
+                        </p>
+                    </div>
+                    <button id="retrain-ia-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition mt-4 w-full">
+                        <i class="fas fa-robot mr-2"></i>Réentraîner l'IA
+                    </button>
+                </div>
             </div>
         </section>
     </main>
@@ -352,6 +397,7 @@
                         <li><a href="#" class="text-gray-400 hover:text-white transition">Signalements</a></li>
                         <li><a href="#" class="text-gray-400 hover:text-white transition">Statistiques</a></li>
                         <li><a href="#" class="text-gray-400 hover:text-white transition">À propos</a></li>
+                        <li><a href="/about" class="text-gray-400 hover:text-white transition">À propos de BinSight</a></li>
                     </ul>
                 </div>
                 <div>
@@ -2029,6 +2075,173 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- FIN: Logique de vérification ---
+
+    // --- NOUVEAU: Logique pour la suppression de toutes les images ---
+    const deleteAllBtn = document.getElementById('delete-all-btn');
+    const deleteAllReportContainer = document.getElementById('delete-all-report-container');
+
+    if (deleteAllBtn) {
+        deleteAllBtn.addEventListener('click', function() {
+            if (!confirm("Êtes-vous sûr de vouloir supprimer toutes les images et leurs données de la base de données et du serveur ? Cette action est irréversible.")) {
+                return;
+            }
+
+            this.disabled = true;
+            this.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Suppression en cours...`;
+            deleteAllReportContainer.innerHTML = '';
+
+            fetch('/api/delete_all_images', { method: 'DELETE' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayDeleteAllReport(data.report);
+                        showSuccessMessage('Toutes les images et leurs données ont été supprimées avec succès !');
+                    } else {
+                        throw new Error(data.error || 'Une erreur inconnue est survenue.');
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Erreur lors de la suppression:', error);
+                    showErrorMessage(`Erreur lors de la suppression: ${error.message}`);
+                    deleteAllReportContainer.innerHTML = `<div class="text-red-500">Échec de la suppression.</div>`;
+                })
+                .finally(() => {
+                    this.disabled = false;
+                    this.innerHTML = `<i class="fas fa-trash-alt mr-2"></i>Supprimer toutes les images`;
+                });
+        });
+    }
+
+    function displayDeleteAllReport(report) {
+        deleteAllReportContainer.classList.remove('hidden');
+        const summary = report.summary;
+        const issuesFound = summary.deleted_images_count + summary.deleted_data_count;
+
+        let html = `
+            <div class="p-4 rounded-lg ${issuesFound > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'} border">
+                <h4 class="font-bold text-lg ${issuesFound > 0 ? 'text-red-800' : 'text-green-800'} mb-3">
+                    <i class="fas ${issuesFound > 0 ? 'fa-exclamation-triangle' : 'fa-check-circle'} mr-2"></i>
+                    Rapport de suppression
+                </h4>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center mb-4">
+                    <div><span class="font-bold text-2xl">${summary.total_images}</span><p class="text-sm text-gray-600">Images supprimées</p></div>
+                    <div><span class="font-bold text-2xl text-red-600">${summary.deleted_images_count}</span><p class="text-sm text-gray-600">Images supprimées</p></div>
+                    <div><span class="font-bold text-2xl text-orange-600">${summary.deleted_data_count}</span><p class="text-sm text-gray-600">Données supprimées</p></div>
+                </div>
+        `;
+
+        if (issuesFound > 0) {
+            html += '<div class="space-y-2 text-sm">';
+            if(report.deleted_images.length > 0) html += `<div><strong>Images supprimées:</strong> ${report.deleted_images.map(i => `ID ${i.id}`).join(', ')}</div>`;
+            if(report.deleted_data.length > 0) html += `<div><strong>Données supprimées:</strong> ${report.deleted_data.map(d => `ID ${d.id}`).join(', ')}</div>`;
+            html += '</div>';
+        } else {
+            html += '<p class="text-green-700 font-medium text-center">✅ Aucune image supprimée. La base de données est saine !</p>';
+        }
+
+        html += '</div>';
+        deleteAllReportContainer.innerHTML = html;
+    }
+    // --- FIN: Logique pour la suppression de toutes les images ---
+
+    // --- NOUVEAU: Logique pour le sélecteur de mode de classification ---
+    const classifierModeSelect = document.getElementById('classifier-mode-select');
+    const classifierModeStatus = document.getElementById('classifier-mode-status');
+
+    function updateClassifierModeUI(mode) {
+        if (classifierModeSelect) classifierModeSelect.value = mode;
+        if (classifierModeStatus) {
+            classifierModeStatus.textContent = mode === 'ia' ?
+                'Mode actuel : IA (Intelligence Artificielle)' :
+                'Mode actuel : Règles (logique experte)';
+        }
+    }
+
+    function fetchClassifierMode() {
+        fetch('/api/classifier_mode')
+            .then(res => res.json())
+            .then(data => {
+                if (data.mode) updateClassifierModeUI(data.mode);
+            });
+    }
+
+    if (classifierModeSelect) {
+        classifierModeSelect.addEventListener('change', function() {
+            const mode = this.value;
+            fetch('/api/classifier_mode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mode })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    updateClassifierModeUI(data.mode);
+                    updateAutoClassifyLabel(data.mode); // MAJ en temps réel du label IA/Règles dans le select d'état
+                    showSuccessMessage('Mode de classification mis à jour : ' + (data.mode === 'ia' ? 'IA' : 'Règles'));
+                } else {
+                    showErrorMessage('Erreur lors du changement de mode : ' + (data.error || 'inconnu'));
+                }
+            })
+            .catch(err => {
+                showErrorMessage('Erreur lors du changement de mode : ' + err.message);
+            });
+        });
+        // Initial fetch
+        fetchClassifierMode();
+    }
+    // --- FIN: Logique pour le sélecteur de mode de classification ---
+
+    // --- NOUVEAU: Mise à jour dynamique du label IA/Règles dans le select d'état ---
+    function updateAutoClassifyLabel(mode) {
+        const autoOption = document.getElementById('auto-classify-option');
+        const autoHelp = document.getElementById('auto-classify-help');
+        if (autoOption) {
+            if (mode === 'rules') {
+                autoOption.textContent = "Laissez les règles décider";
+                if (autoHelp) autoHelp.textContent = "Si vous ne sélectionnez rien, les règles analyseront automatiquement l'image";
+            } else {
+                autoOption.textContent = "Laissez l'IA décider";
+                if (autoHelp) autoHelp.textContent = "Si vous ne sélectionnez rien, l'IA analysera automatiquement l'image";
+            }
+        }
+    }
+    // Appeler aussi lors du fetch du mode de classification
+    function fetchClassifierModeAndUpdateSelect() {
+        fetch('/api/classifier_mode')
+            .then(res => res.json())
+            .then(data => {
+                if (data.mode) updateAutoClassifyLabel(data.mode);
+            });
+    }
+    fetchClassifierModeAndUpdateSelect();
+    // --- FIN: Mise à jour dynamique du label IA/Règles dans le select d'état ---
+
+    // --- NOUVEAU: Réentraînement IA ---
+    const retrainIaBtn = document.getElementById('retrain-ia-btn');
+    if (retrainIaBtn) {
+        retrainIaBtn.addEventListener('click', function() {
+            retrainIaBtn.disabled = true;
+            retrainIaBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Entraînement en cours...';
+            fetch('/api/retrain_ia', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showSuccessMessage('Modèle IA réentraîné ! Voir la console pour les métriques.');
+                    } else {
+                        showErrorMessage('Erreur : ' + (data.error || 'inconnue'));
+                    }
+                })
+                .catch(err => {
+                    showErrorMessage('Erreur : ' + err.message);
+                })
+                .finally(() => {
+                    retrainIaBtn.disabled = false;
+                    retrainIaBtn.innerHTML = '<i class="fas fa-robot mr-2"></i>Réentraîner l\'IA';
+                });
+        });
+    }
+    // --- FIN: Réentraînement IA ---
 });
 
 // Fonction pour charger les données de la carte depuis l'API

@@ -13,6 +13,11 @@ import numpy as np
 import cv2
 from datetime import datetime
 from flask_socketio import SocketIO, emit # NOUVELLE IMPORTATION
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, confusion_matrix
+import joblib
+from sklearn.model_selection import cross_val_score
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'binsight-secret-key-2023'
@@ -288,19 +293,19 @@ class FeatureExtractor:
             
             # Caractéristiques d'histogramme plus sophistiquées
             hist_features = {
-                'red_mean': float(np.mean(hist_r)),
-                'green_mean': float(np.mean(hist_g)),
-                'blue_mean': float(np.mean(hist_b)),
-                'red_std': float(np.std(hist_r)),
-                'green_std': float(np.std(hist_g)),
-                'blue_std': float(np.std(hist_b)),
+                'red_mean': float(np.mean(hist_r.astype(np.float32).ravel())),
+                'green_mean': float(np.mean(hist_g.astype(np.float32).ravel())),
+                'blue_mean': float(np.mean(hist_b.astype(np.float32).ravel())),
+                'red_std': float(np.std(hist_r.astype(np.float32).ravel())),
+                'green_std': float(np.std(hist_g.astype(np.float32).ravel())),
+                'blue_std': float(np.std(hist_b.astype(np.float32).ravel())),
                 'red_skew': float(self.calculate_skewness(hist_r)),  # NOUVEAU
                 'green_skew': float(self.calculate_skewness(hist_g)),  # NOUVEAU
                 'blue_skew': float(self.calculate_skewness(hist_b))   # NOUVEAU
             }
             
             # 2. Contraste adaptatif
-            contrast = float(np.std(gray))
+            contrast = float(np.std(gray.astype(np.float32).ravel()))
             
             # 3. Détection de contours multi-échelle
             edges_50_150 = cv2.Canny(gray, 50, 150)
@@ -318,8 +323,8 @@ class FeatureExtractor:
             
             # 7. Saturation et teinte améliorées
             hsv = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
-            saturation = float(np.mean(hsv[:, :, 1]))
-            hue_dominance = float(np.std(hsv[:, :, 0]))
+            saturation = float(np.mean(hsv[:, :, 1].astype(np.float32).ravel()))
+            hue_dominance = float(np.std(hsv[:, :, 0].astype(np.float32).ravel()))
             
             return {
                 'contrast': contrast,
@@ -490,10 +495,135 @@ class FeatureExtractor:
 
 class SimpleClassifier:
     def __init__(self):
-        """Initialiser le classificateur simple"""
+        """Initialiser le classificateur simple ou IA"""
         self.rules = self.load_classification_rules()
+        self.ia_model = None
+        self.ia_trained = False
+        self.ia_label_map = {0: 'dirty', 1: 'clean'}
+        self.mode = 'rules'  # 'rules' or 'ia'
         print("✓ Classificateur simple initialisé")
-    
+
+    def set_mode(self, mode):
+        """Changer le mode de classification ('rules' ou 'ia')"""
+        if mode in ['rules', 'ia']:
+            self.mode = mode
+        else:
+            print(f"Mode inconnu: {mode}")
+
+    def classify(self, features):
+        """Classifier une image selon le mode choisi"""
+        if self.mode == 'ia':
+            return self.classify_ia(features)
+        else:
+            return self.classify_rules(features)
+
+    def classify_rules(self, features):
+        """Ancienne méthode de classification par règles"""
+        # Copie du code original de classify ici
+        try:
+            if not self.rules:
+                self.rules = self.load_classification_rules()
+            for rule in self.rules:
+                if self.evaluate_rule(features, rule['condition']):
+                    confidence = self.calculate_confidence(features, rule['condition'])
+                    action = rule['action']
+                    if action == 'full':
+                        return 'pleine', confidence
+                    elif action == 'empty':
+                        return 'vide', confidence
+                    else:
+                        return action, confidence
+            file_size = features.get('file_size', 0)
+            width = features.get('width', 0)
+            height = features.get('height', 0)
+            brightness = features.get('brightness', 128)
+            unique_hash = abs(int(file_size + width * height + brightness * 100))
+            if unique_hash % 2 == 0:
+                return 'vide', 0.75
+            else:
+                return 'pleine', 0.75
+        except Exception as e:
+            print(f"⚠️ Erreur classification: {e}")
+            import random
+            return ('vide', 0.6) if random.randint(0, 1) == 0 else ('pleine', 0.6)
+
+    def classify_ia(self, features):
+        """Classifier une image avec un modèle IA entraîné sur les données labellisées"""
+        if not self.ia_trained:
+            print("Le modèle IA n'est pas entraîné. Veuillez le réentraîner via l'admin.")
+            return 'inconnu', 0.0
+        if self.ia_model is None:
+            print("Aucun modèle IA disponible")
+            return 'inconnu', 0.0
+        # Sélectionner les features utilisés pour l'IA
+        X = self.features_to_vector(features)
+        pred = self.ia_model.predict([X])[0]
+        proba = max(self.ia_model.predict_proba([X])[0])
+        label = self.ia_label_map.get(pred, 'inconnu')
+        # Map to 'pleine'/'vide' for compatibility
+        if label == 'dirty':
+            return 'pleine', proba
+        elif label == 'clean':
+            return 'vide', proba
+        else:
+            return label, proba
+
+    def train_ia_model(self):
+        """Entraîner le modèle IA sur les images labellisées"""
+        print("Entraînement du modèle IA...")
+        X, y = [], []
+        for label, folder in [(0, 'dirty'), (1, 'clean')]:
+            dir_path = os.path.join('Data', 'train', 'with_label', folder)
+            if not os.path.exists(dir_path):
+                continue
+            for fname in os.listdir(dir_path):
+                fpath = os.path.join(dir_path, fname)
+                try:
+                    feats = feature_extractor.extract(fpath)
+                    if feats:
+                        X.append(self.features_to_vector(feats))
+                        y.append(label)
+                except Exception as e:
+                    print(f"Erreur extraction IA: {e}")
+        if len(X) < 5:
+            print("Pas assez de données pour entraîner l'IA")
+            self.ia_model = None
+            self.ia_trained = False
+            return
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        model = RandomForestClassifier(n_estimators=50, random_state=42)
+        model.fit(X_train, y_train)
+        acc = accuracy_score(y_test, model.predict(X_test))
+        print(f"Score IA (test): {acc:.2f}")
+        y_pred = model.predict(X_test)
+        print("Matrice de confusion :")
+        print(confusion_matrix(y_test, y_pred))
+        self.ia_model = model
+        self.ia_trained = True
+        # Optionally save model: joblib.dump(model, 'ia_model.joblib')
+        scores = cross_val_score(model, X, y, cv=5)
+        print(f"Cross-validation (5-fold) accuracy: {scores.mean():.2f} (+/- {scores.std():.2f})")
+
+    def features_to_vector(self, features):
+        """Convertir le dict de features en vecteur pour le modèle IA"""
+        # Sélectionner les features numériques pertinents
+        vec = [
+            features.get('file_size', 0),
+            features.get('width', 0),
+            features.get('height', 0),
+            features.get('avg_red', 0),
+            features.get('avg_green', 0),
+            features.get('avg_blue', 0),
+            features.get('brightness', 0),
+            features.get('contrast_level', 0),
+            features.get('edge_density', 0),
+            features.get('color_diversity', 0),
+            features.get('saturation', 0),
+            features.get('hue_dominance', 0)
+        ]
+        # Optionally add more from histogram/texture/shape
+        return vec
+
     def load_classification_rules(self):
         """Charger les règles de classification depuis la base de données"""
         try:
@@ -526,42 +656,6 @@ class SimpleClassifier:
         except Exception as e:
             print(f"⚠️ Erreur lors du chargement des règles: {e}")
             return []
-    
-    def classify(self, features):
-        """Classifier une image basée sur ses caractéristiques - 50/50 FORCÉ DÉFINITIF"""
-        try:
-            # Recharger les règles si nécessaire
-            if not self.rules:
-                self.rules = self.load_classification_rules()
-        
-            # Appliquer les règles par ordre de priorité
-            for rule in self.rules:
-                if self.evaluate_rule(features, rule['condition']):
-                    confidence = self.calculate_confidence(features, rule['condition'])
-                    action = rule['action']
-                    if action == 'full':
-                        return 'pleine', confidence
-                    elif action == 'empty':
-                        return 'vide', confidence
-                    else:
-                        return action, confidence
-
-            # 50/50 FORCÉ : aucune exception, aucune pondération, aucune logique supplémentaire
-            file_size = features.get('file_size', 0)
-            width = features.get('width', 0)
-            height = features.get('height', 0)
-            brightness = features.get('brightness', 128)
-            # Hash déterministe
-            unique_hash = abs(int(file_size + width * height + brightness * 100))
-            if unique_hash % 2 == 0:
-                return 'vide', 0.75
-            else:
-                return 'pleine', 0.75
-
-        except Exception as e:
-            print(f"⚠️ Erreur classification: {e}")
-            import random
-            return ('vide', 0.6) if random.randint(0, 1) == 0 else ('pleine', 0.6)
     
     def evaluate_rule(self, features, condition):
         """Évaluer si une condition est remplie"""
@@ -633,6 +727,7 @@ class SimpleClassifier:
 # Initialiser les composants
 feature_extractor = FeatureExtractor()
 classifier = SimpleClassifier()
+classifier.train_ia_model()  # Entraîne l'IA au démarrage
 
 # Middleware pour logger les requêtes
 @app.before_request
@@ -692,6 +787,10 @@ def upload_file():
         
         file = request.files['file']
         print(f"📁 Fichier reçu: {file.filename}")
+        
+        if file.filename is None:
+            print("❌ Erreur: Nom de fichier est None")
+            return jsonify({'success': False, 'message': 'Nom de fichier manquant'})
         
         if file.filename == '':
             print("❌ Erreur: Nom de fichier vide")
@@ -823,7 +922,7 @@ def upload_file():
                 print("❌ Erreur: Échec extraction des caractéristiques")
                 return jsonify({'success': False, 'message': 'Erreur lors de l\'analyse de l\'image'})
         else:
-            extension = file.filename.split('.')[-1] if '.' in file.filename else 'aucune'
+            extension = file.filename.split('.')[-1] if file.filename and '.' in file.filename else 'aucune'
             print(f"❌ Fichier non valide. Extension: {extension}")
             return jsonify({'success': False, 'message': 'Format de fichier non supporté. Utilisez JPG, PNG ou JPEG.'})
     
@@ -1857,6 +1956,78 @@ def broadcast_update():
     with app.app_context():
         socketio.emit('update_data', {'message': 'Les données ont été mises à jour !'})
 
+@app.route('/api/delete_all_images', methods=['DELETE'])
+def delete_all_images():
+    """Supprime toutes les images et leurs données de la base de données et du dossier uploads."""
+    try:
+        conn = sqlite3.connect('binsight.db')
+        cursor = conn.cursor()
+        # Récupérer tous les chemins de fichiers
+        cursor.execute('SELECT id, file_path FROM images')
+        images = cursor.fetchall()
+        deleted_images = []
+        for img in images:
+            img_id, file_path = img
+            try:
+                if file_path and os.path.exists(file_path):
+                    os.remove(file_path)
+                    deleted_images.append({'id': img_id, 'file_path': file_path})
+            except Exception as e:
+                print(f"Erreur suppression fichier {file_path}: {e}")
+        # Supprimer toutes les entrées de la table images
+        cursor.execute('DELETE FROM images')
+        deleted_data_count = cursor.rowcount
+        conn.commit()
+        conn.close()
+        # Nettoyer le dossier uploads
+        upload_folder = app.config['UPLOAD_FOLDER']
+        for filename in os.listdir(upload_folder):
+            file_path = os.path.join(upload_folder, filename)
+            try:
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+            except Exception as e:
+                print(f"Erreur suppression fichier orphelin {file_path}: {e}")
+        report = {
+            'summary': {
+                'total_images': len(images),
+                'deleted_images_count': len(deleted_images),
+                'deleted_data_count': deleted_data_count
+            },
+            'deleted_images': deleted_images,
+            'deleted_data': [{'id': img[0]} for img in images]
+        }
+        return jsonify({'success': True, 'report': report})
+    except Exception as e:
+        print(f"Erreur lors de la suppression de toutes les images: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/classifier_mode', methods=['GET'])
+def get_classifier_mode():
+    """Retourne le mode de classification actuel ('rules' ou 'ia')."""
+    return jsonify({'mode': classifier.mode})
+
+@app.route('/api/classifier_mode', methods=['POST'])
+def set_classifier_mode():
+    """Change le mode de classification ('rules' ou 'ia')."""
+    data = request.get_json()
+    mode = data.get('mode')
+    if mode not in ['rules', 'ia']:
+        return jsonify({'success': False, 'error': 'Mode invalide'}), 400
+    classifier.set_mode(mode)
+    return jsonify({'success': True, 'mode': classifier.mode})
+
+@app.route('/api/retrain_ia', methods=['POST'])
+def retrain_ia():
+    try:
+        classifier.train_ia_model()
+        return {'success': True, 'message': 'Modèle IA réentraîné. Voir la console pour les métriques.'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}, 500
+
+@app.route('/about')
+def about():
+    return render_template('about.html')
 
 if __name__ == '__main__':
     print("🚀 Initialisation de l'application...")
