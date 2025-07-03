@@ -546,22 +546,22 @@ class SimpleClassifier:
                     else:
                         return action, confidence
 
-        # 50/50 FORCÉ : aucune exception, aucune pondération, aucune logique supplémentaire
-        file_size = features.get('file_size', 0)
-        width = features.get('width', 0)
-        height = features.get('height', 0)
-        brightness = features.get('brightness', 128)
-        # Hash déterministe
-        unique_hash = abs(int(file_size + width * height + brightness * 100))
-        if unique_hash % 2 == 0:
-            return 'vide', 0.75
-        else:
-            return 'pleine', 0.75
+            # 50/50 FORCÉ : aucune exception, aucune pondération, aucune logique supplémentaire
+            file_size = features.get('file_size', 0)
+            width = features.get('width', 0)
+            height = features.get('height', 0)
+            brightness = features.get('brightness', 128)
+            # Hash déterministe
+            unique_hash = abs(int(file_size + width * height + brightness * 100))
+            if unique_hash % 2 == 0:
+                return 'vide', 0.75
+            else:
+                return 'pleine', 0.75
 
-    except Exception as e:
-        print(f"⚠️ Erreur classification: {e}")
-        import random
-        return 'vide' if random.randint(0, 1) == 0 else 'pleine', 0.6
+        except Exception as e:
+            print(f"⚠️ Erreur classification: {e}")
+            import random
+            return ('vide', 0.6) if random.randint(0, 1) == 0 else ('pleine', 0.6)
     
     def evaluate_rule(self, features, condition):
         """Évaluer si une condition est remplie"""
