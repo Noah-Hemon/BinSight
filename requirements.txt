@@ -1,0 +1,7 @@
+Flask
+Pillow
+scikit-image
+requests
+numpy
+opencv-python
+Flask-SocketIO

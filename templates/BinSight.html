@@ -18,7 +18,7 @@
             padding: 2rem;
             border: 2px dashed #ccc;
             border-radius: 0.5rem;
-            transition: all 0.3s;
+            transition: background-color 0.2s;
         }
         .file-upload:hover {
             border-color: #4ade80;
@@ -44,6 +44,13 @@
             0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
             70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
             100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .selected-row {
+            background-color: #dbeafe !important; /* Tailwind's blue-100 */
+            --tw-ring-color: #3b82f6;
+            --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+            --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+            box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
         }
     </style>
 </head>
@@ -242,7 +249,7 @@
             <h2 class="text-3xl font-bold mb-6">Derniers signalements</h2>
             <div class="bg-white rounded-xl shadow-lg overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
+                    <table class="min-w-full divide-y divide-gray-200" id="recent-reports-table">
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
@@ -259,6 +266,58 @@
                 </div>
                 <div class="bg-gray-50 px-6 py-3 text-center text-gray-500" id="no-reports" style="display: none;">
                     Aucun signalement pour le moment
+                </div>
+                <!-- NOUVEAU: Conteneur pour les contrôles de pagination -->
+                <div id="pagination-controls" class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                    <!-- Les contrôles de pagination seront générés dynamiquement ici -->
+                </div>
+            </div>
+        </section>
+
+        <!-- NOUVEAU: Section Outils d'Administration -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold mb-6">Outils d'Administration</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Outil 1: Vérification de l'intégrité -->
+                <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col">
+                    <div class="flex-grow">
+                        <h3 class="text-xl font-bold text-gray-800">Vérification de l'intégrité</h3>
+                        <p class="text-gray-600 mt-1">
+                            Analysez la base de données pour trouver les fichiers manquants ou orphelins.
+                        </p>
+                    </div>
+                    <div id="integrity-report-container" class="mt-4"></div>
+                    <button id="verify-integrity-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition mt-4 w-full">
+                        <i class="fas fa-shield-alt mr-2"></i>Lancer la vérification
+                    </button>
+                </div>
+
+                <!-- Outil 2: Importation en masse -->
+                <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col">
+                    <div class="flex-grow">
+                        <h3 class="text-xl font-bold text-gray-800">Importation en masse</h3>
+                        <p class="text-gray-600 mt-1">
+                            Importer toutes les images des dossiers `Data/test` et `Data/train`.
+                        </p>
+                    </div>
+                    <div id="batch-import-report-container" class="mt-4"></div>
+                    <button id="batch-import-btn" class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg transition mt-4 w-full">
+                        <i class="fas fa-file-import mr-2"></i>Démarrer l'importation
+                    </button>
+                </div>
+                
+                <!-- NOUVEAU: Outil 3: Ré-analyse complète -->
+                <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col">
+                    <div class="flex-grow">
+                        <h3 class="text-xl font-bold text-gray-800">Ré-analyse complète</h3>
+                        <p class="text-gray-600 mt-1">
+                            Appliquer à nouveau l'algorithme de classification sur toutes les images existantes.
+                        </p>
+                    </div>
+                    <div id="reclassify-report-container" class="mt-4"></div>
+                    <button id="reclassify-btn" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg transition mt-4 w-full">
+                        <i class="fas fa-sync-alt mr-2"></i>Lancer la ré-analyse
+                    </button>
                 </div>
             </div>
         </section>
@@ -1149,21 +1208,24 @@ function initChart() {
 
 
 // Fonction pour charger les derniers signalements depuis l'API
-function loadRecentReports() {
-    console.log('📋 Chargement des derniers signalements...');
+function loadRecentReports(page = 1) {
+    console.log(`📋 Chargement des derniers signalements (page ${page})...`);
     
-    fetch('/api/recent_reports')
+    fetch(`/api/recent_reports?page=${page}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             return response.json();
         })
-        .then(reports => {
-            console.log('📋 Signalements reçus:', reports);
+        .then(data => {
+            console.log('📋 Signalements reçus:', data);
             
             // Mettre à jour le tableau des signalements
-            updateReportsTable(reports);
+            updateReportsTable(data.reports);
+            
+            // NOUVEAU: Mettre à jour les contrôles de pagination
+            renderPaginationControls(data.pagination);
             
             console.log('✅ Derniers signalements mis à jour avec succès');
         })
@@ -1177,7 +1239,7 @@ function loadRecentReports() {
 
 // Fonction pour mettre à jour le tableau des signalements
 function updateReportsTable(reports) {
-    const tbody = document.querySelector('tbody');
+    const tbody = document.querySelector('#recent-reports-table tbody');
     const noReportsDiv = document.getElementById('no-reports');
     
     if (!tbody) {
@@ -1211,11 +1273,77 @@ function updateReportsTable(reports) {
     console.log(`✅ ${reports.length} signalement(s) affiché(s) dans le tableau`);
 }
 
+// NOUVEAU: Fonction pour créer les contrôles de pagination
+function renderPaginationControls(pagination) {
+    const { current_page, total_pages, total_reports, limit } = pagination;
+    const container = document.getElementById('pagination-controls');
+    if (!container) return;
+
+    if (total_pages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const startItem = (current_page - 1) * limit + 1;
+    const endItem = Math.min(startItem + limit - 1, total_reports);
+
+    let html = `
+        <div class="flex-1 flex justify-between sm:hidden">
+            <button onclick="loadRecentReports(${current_page - 1})" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50" ${current_page === 1 ? 'disabled' : ''}>
+                Précédent
+            </button>
+            <button onclick="loadRecentReports(${current_page + 1})" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50" ${current_page === total_pages ? 'disabled' : ''}>
+                Suivant
+            </button>
+        </div>
+        <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+                <p class="text-sm text-gray-700">
+                    Affichage de
+                    <span class="font-medium">${startItem}</span>
+                    à
+                    <span class="font-medium">${endItem}</span>
+                    sur
+                    <span class="font-medium">${total_reports}</span>
+                    résultats
+                </p>
+            </div>
+            <div>
+                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <button onclick="loadRecentReports(${current_page - 1})" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50" ${current_page === 1 ? 'disabled' : ''}>
+                        <span class="sr-only">Précédent</span>
+                        <i class="fas fa-chevron-left h-5 w-5"></i>
+                    </button>
+    `;
+
+    // Logique pour afficher les numéros de page (simplifiée)
+    for (let i = 1; i <= total_pages; i++) {
+        if (i === current_page) {
+            html += `<button aria-current="page" class="z-10 bg-green-50 border-green-500 text-green-600 relative inline-flex items-center px-4 py-2 border text-sm font-medium">${i}</button>`;
+        } else {
+            html += `<button onclick="loadRecentReports(${i})" class="bg-white border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 border text-sm font-medium">${i}</button>`;
+        }
+    }
+
+    html += `
+                    <button onclick="loadRecentReports(${current_page + 1})" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50" ${current_page === total_pages ? 'disabled' : ''}>
+                        <span class="sr-only">Suivant</span>
+                        <i class="fas fa-chevron-right h-5 w-5"></i>
+                    </button>
+                </nav>
+            </div>
+        </div>
+    `;
+    container.innerHTML = html;
+}
+
+
 // Fonction pour créer une ligne de signalement
 function createReportRow(report, index) {
     const row = document.createElement('tr');
     row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
-    
+    row.dataset.reportId = report.id;
+
     // Déterminer la couleur du statut
     const statusColor = getStatusColor(report.status);
     const statusIcon = getStatusIcon(report.status);
@@ -1283,10 +1411,6 @@ function createReportRow(report, index) {
                 
                 ${report.status !== 'pleine' && report.status !== 'vide' ? `
                     <button onclick="annotateFromTable(${report.id}, 'pleine')" 
-                            class="text-red-600 hover:text-red-900 transition-colors"
-                            title="Marquer comme pleine">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
                     <button onclick="annotateFromTable(${report.id}, 'vide')" 
                             class="text-green-600 hover:text-green-900 transition-colors"
                             title="Marquer comme vide">
@@ -1464,7 +1588,6 @@ function showImageDetailsModal(imageData) {
             
             <!-- Caractéristiques techniques -->
             <div class="bg-gray-50 p-4 rounded-lg mb-6">
-                <h4 class="font-semibold mb-3 text-gray-800">🔧 Caractéristiques techniques</h4>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                     <div>
                         <span class="text-gray-600 block">Dimensions :</span>
@@ -1540,6 +1663,7 @@ function annotateFromTable(imageId, annotation) {
 
 // Fonction pour supprimer un signalement (optionnelle)
 function deleteReport(imageId) {
+
     if (confirm('Êtes-vous sûr de vouloir supprimer ce signalement ?')) {
         console.log(`🗑️ Suppression du signalement ID: ${imageId}`);
         
@@ -1583,7 +1707,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initMap();
     initChart();
     loadStats();
-    loadRecentReports();
+    loadRecentReports(1); // MODIFIÉ
     
     // Attacher les événements de drag and drop
     attachDragAndDropEvents();
@@ -1614,7 +1738,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Actualiser les données périodiquement
     setInterval(() => {
         loadStats();
-        loadRecentReports();
+        loadRecentReports(1);
     }, 30000);
     
     // Scroll smooth pour les boutons du hero
@@ -1632,14 +1756,276 @@ document.addEventListener('DOMContentLoaded', () => {
             if (section) section.scrollIntoView({ behavior: 'smooth' });
         });
     }
-});
 
+    // --- NOUVEAU: Logique pour les raccourcis clavier du tableau de bord ---
+    let selectedReportIndex = -1;
+    let reportRows = [];
+
+    function updateSelection(newIndex) {
+        const tableBody = document.querySelector('#recent-reports-table tbody');
+        if (!tableBody) return;
+        reportRows = Array.from(tableBody.querySelectorAll('tr'));
+
+        if (reportRows.length === 0) return;
+
+        // Remove highlight from old selection
+        if (selectedReportIndex !== -1 && reportRows[selectedReportIndex]) {
+            reportRows[selectedReportIndex].classList.remove('selected-row');
+        }
+
+        // Clamp the index to be within bounds
+        if (newIndex < 0) newIndex = 0;
+        if (newIndex >= reportRows.length) newIndex = reportRows.length - 1;
+
+        selectedReportIndex = newIndex;
+
+        // Add highlight to new selection
+        const selectedRow = reportRows[selectedReportIndex];
+        if (selectedRow) {
+            selectedRow.classList.add('selected-row');
+            selectedRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+
+    document.addEventListener('keydown', (e) => {
+        const isModalOpen = !!document.querySelector('.fixed.inset-0.bg-black.bg-opacity-50');
+        const isTyping = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
+
+        if (e.key === 'Escape' && isModalOpen) {
+            const modal = document.querySelector('.fixed.inset-0.bg-black.bg-opacity-50');
+            if (modal) modal.remove();
+            e.preventDefault();
+            return;
+        }
+
+        if (isTyping) return;
+
+        const hasSelection = selectedReportIndex !== -1 && reportRows[selectedReportIndex];
+        let reportId = null;
+        if (hasSelection) {
+            reportId = reportRows[selectedReportIndex].dataset.reportId;
+        }
+
+        switch(e.key.toLowerCase()) {
+            case 'arrowdown':
+            case '→':
+                updateSelection(selectedReportIndex + 1);
+                e.preventDefault();
+                break;
+            case 'arrowup':
+            case '←':
+                updateSelection(selectedReportIndex - 1);
+                e.preventDefault();
+                break;
+            case 'f':
+                if (hasSelection) {
+                    annotateFromTable(reportId, 'pleine');
+                    showSuccessMessage(`Signalement #${reportId} marqué "Pleine"`);
+                    e.preventDefault();
+                }
+                break;
+            case 'e':
+                if (hasSelection) {
+                    annotateFromTable(reportId, 'vide');
+                    showSuccessMessage(`Signalement #${reportId} marqué "Vide"`);
+                    e.preventDefault();
+                }
+                break;
+            case 'm':
+                if (hasSelection) {
+                    viewImageDetails(reportId);
+                    e.preventDefault();
+                }
+                break;
+        }
+    });
+
+    // Attacher les événements de clic pour la sélection
+    const reportsTableBody = document.querySelector('#recent-reports-table tbody');
+    if (reportsTableBody) {
+        reportsTableBody.addEventListener('click', (e) => {
+            const clickedRow = e.target.closest('tr');
+            if (clickedRow) {
+                const tableBody = clickedRow.parentElement;
+                const allRows = Array.from(tableBody.querySelectorAll('tr'));
+                const rowIndex = allRows.findIndex(row => row === clickedRow);
+                updateSelection(rowIndex);
+            }
+        });
+    }
+    // --- FIN: Logique pour les raccourcis clavier ---
+
+    // --- NOUVEAU: Logique pour la vérification de l'intégrité ---
+    const verifyBtn = document.getElementById('verify-integrity-btn');
+    const reportContainer = document.getElementById('integrity-report-container');
+
+    if (verifyBtn) {
+        verifyBtn.addEventListener('click', function() {
+            this.disabled = true;
+            this.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Vérification en cours...`;
+            reportContainer.innerHTML = '';
+            reportContainer.classList.add('hidden');
+
+            fetch('/api/verify_integrity')
+                .then(response => response.json())
+                .then(report => {
+                    displayIntegrityReport(report);
+                })
+                .catch(error => {
+                    console.error('❌ Erreur lors de la vérification:', error);
+                    reportContainer.innerHTML = `<div class="text-red-500">Erreur lors de la communication avec le serveur.</div>`;
+                })
+                .finally(() => {
+                    this.disabled = false;
+                    this.innerHTML = `<i class="fas fa-shield-alt mr-2"></i>Relancer la vérification`;
+                });
+        });
+    }
+
+    function displayIntegrityReport(report) {
+        reportContainer.classList.remove('hidden');
+        const summary = report.summary;
+        const issuesFound = summary.missing_files_count + summary.orphaned_files_count + summary.invalid_json_count + summary.invalid_confidence_count;
+
+        let html = `
+            <div class="p-4 rounded-lg ${issuesFound > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'} border">
+                <h4 class="font-bold text-lg ${issuesFound > 0 ? 'text-red-800' : 'text-green-800'} mb-3">
+                    <i class="fas ${issuesFound > 0 ? 'fa-exclamation-triangle' : 'fa-check-circle'} mr-2"></i>
+                    Rapport de conformité
+                </h4>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center mb-4">
+                    <div><span class="font-bold text-2xl">${summary.total_db_records}</span><p class="text-sm text-gray-600">Images en BDD</p></div>
+                    <div><span class="font-bold text-2xl text-red-600">${summary.missing_files_count}</span><p class="text-sm text-gray-600">Fichiers Manquants</p></div>
+                    <div><span class="font-bold text-2xl text-orange-600">${summary.orphaned_files_count}</span><p class="text-sm text-gray-600">Fichiers Orphelins</p></div>
+                    <div><span class="font-bold text-2xl text-yellow-600">${summary.invalid_json_count}</span><p class="text-sm text-gray-600">Données Invalides</p></div>
+                </div>
+        `;
+
+        if (issuesFound > 0) {
+            html += '<div class="space-y-2 text-sm">';
+            if(report.missing_files.length > 0) html += `<div><strong>Fichiers manquants:</strong> ${report.missing_files.map(f => `ID ${f.id}`).join(', ')}</div>`;
+            if(report.orphaned_files.length > 0) html += `<div><strong>Fichiers orphelins:</strong> ${report.orphaned_files.map(f => f.split('/').pop()).join(', ')}</div>`;
+            if(report.invalid_json_features.length > 0) html += `<div><strong>JSON invalides:</strong> ${report.invalid_json_features.map(f => `ID ${f.id}`).join(', ')}</div>`;
+            html += '</div>';
+        } else {
+            html += '<p class="text-green-700 font-medium text-center">✅ Aucune anomalie détectée. La base de données est saine !</p>';
+        }
+
+        html += '</div>';
+        reportContainer.innerHTML = html;
+    }
+
+    // --- NOUVEAU: Logique pour l'importation en masse ---
+    const importBtn = document.getElementById('batch-import-btn');
+    const importReportContainer = document.getElementById('batch-import-report-container');
+
+    if (importBtn) {
+        importBtn.addEventListener('click', function() {
+            if (!confirm("Cette action peut prendre plusieurs minutes et importer des centaines d'images. Êtes-vous sûr de vouloir continuer ?")) {
+                return;
+            }
+
+            this.disabled = true;
+            this.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Importation en cours...`;
+            importReportContainer.innerHTML = '';
+
+            fetch('/api/batch_import', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayImportReport(data.report);
+                        showSuccessMessage('Importation en masse terminée !');
+                        // Le rafraîchissement se fera via WebSocket
+                    } else {
+                        throw new Error(data.error || 'Une erreur inconnue est survenue.');
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Erreur lors de l\'importation en masse:', error);
+                    showErrorMessage(`Erreur d'importation: ${error.message}`);
+                    importReportContainer.innerHTML = `<div class="text-red-500">Échec de l'importation.</div>`;
+                })
+                .finally(() => {
+                    this.disabled = false;
+                    this.innerHTML = `<i class="fas fa-file-import mr-2"></i>Relancer l'importation`;
+                });
+        });
+    }
+
+    function displayImportReport(report) {
+        const issuesFound = report.failed > 0;
+        let html = `
+            <div class="p-4 rounded-lg text-sm ${issuesFound ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'} border">
+                <h4 class="font-bold mb-2 ${issuesFound ? 'text-red-800' : 'text-green-800'}">Rapport d'importation</h4>
+                <div class="space-y-1">
+                    <div><i class="fas fa-check-circle text-green-600 mr-2"></i><strong>Importés :</strong> ${report.imported}</div>
+                    <div><i class="fas fa-redo text-gray-500 mr-2"></i><strong>Ignorés (doublons) :</strong> ${report.skipped}</div>
+                    <div><i class="fas fa-exclamation-triangle text-red-600 mr-2"></i><strong>Échecs :</strong> ${report.failed}</div>
+                </div>
+            </div>
+        `;
+        importReportContainer.innerHTML = html;
+    }
+
+    // --- NOUVEAU: Logique pour la ré-analyse complète ---
+    const reclassifyBtn = document.getElementById('reclassify-btn');
+    const reclassifyReportContainer = document.getElementById('reclassify-report-container');
+
+    if (reclassifyBtn) {
+        reclassifyBtn.addEventListener('click', function() {
+            if (!confirm("Cette action va ré-analyser TOUTES les images de la base de données. Cela peut prendre du temps. Continuer ?")) {
+                return;
+            }
+
+            this.disabled = true;
+            this.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Ré-analyse en cours...`;
+            reclassifyReportContainer.innerHTML = '';
+
+            fetch('/api/reclassify_all', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayReclassifyReport(data.report);
+                        showSuccessMessage('Ré-analyse complète terminée !');
+                    } else {
+                        throw new Error(data.error || 'Une erreur inconnue est survenue.');
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Erreur lors de la ré-analyse:', error);
+                    showErrorMessage(`Erreur de ré-analyse: ${error.message}`);
+                    reclassifyReportContainer.innerHTML = `<div class="text-red-500">Échec de la ré-analyse.</div>`;
+                })
+                .finally(() => {
+                    this.disabled = false;
+                    this.innerHTML = `<i class="fas fa-sync-alt mr-2"></i>Relancer la ré-analyse`;
+                });
+        });
+    }
+
+    function displayReclassifyReport(report) {
+        const issuesFound = report.failed > 0 || report.not_found > 0;
+        let html = `
+            <div class="p-4 rounded-lg text-sm ${issuesFound ? 'bg-yellow-50 border-yellow-200' : 'bg-green-50 border-green-200'} border">
+                <h4 class="font-bold mb-2 ${issuesFound ? 'text-yellow-800' : 'text-green-800'}">Rapport de ré-analyse</h4>
+                <div class="space-y-1">
+                    <div><i class="fas fa-check-circle text-green-600 mr-2"></i><strong>Ré-analysées :</strong> ${report.reclassified}</div>
+                    <div><i class="fas fa-question-circle text-gray-500 mr-2"></i><strong>Fichiers non trouvés :</strong> ${report.not_found}</div>
+                    <div><i class="fas fa-exclamation-triangle text-red-600 mr-2"></i><strong>Échecs :</strong> ${report.failed}</div>
+                </div>
+            </div>
+        `;
+        reclassifyReportContainer.innerHTML = html;
+    }
+
+    // --- FIN: Logique de vérification ---
+});
 
 // Fonction pour charger les données de la carte depuis l'API
 function loadMapData() {
     console.log('🗺️ Chargement des données de la carte...');
     
-    fetch('/api/poubelles')
+    fetch('/api/map_data') // MODIFIÉ: Utiliser la bonne route
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -1736,7 +2122,7 @@ function createMapMarker(poubelle, index) {
                 ${poubelle.status === 'pleine' ? `
                     <div style="
                         position: absolute;
-                        top: -25px;
+                                               top: -25px;
                         left: 50%;
                         transform: translateX(-50%);
                         background: #ef4444;
@@ -2034,8 +2420,6 @@ function initMap() {
     }).addTo(map);
     loadMapData();
 }
-
-// [Continuez avec toutes les autres fonctions existantes...]
-// (loadMapData, viewImageDetails, handleAction, loadRecentReports, loadStats, updateChart, initChart)
-
 </script>
+</body>
+</html>

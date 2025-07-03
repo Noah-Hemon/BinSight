@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BinSight - Annotation Avancée</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .annotation-container {
+            display: flex;
+            height: 100vh;
+        }
+        .image-panel {
+            flex: 1;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .controls-panel {
+            width: 350px;
+            background: white;
+            border-left: 1px solid #dee2e6;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .image-display {
+            max-width: 100%;
+            max-height: 70vh;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            cursor: crosshair;
+        }
+        .metadata-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .shortcut-hint {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 1000;
+        }
+        .annotation-overlay {
+            position: absolute;
+            background: rgba(255,255,0,0.3);
+            border: 2px solid #ffc107;
+            border-radius: 4px;
+            cursor: move;
+        }
+        .navigation-buttons {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+        }
+        .feature-chart {
+            width: 100%;
+            height: 200px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="annotation-container">
+        <div class="image-panel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3>Image {{ current_image.id }}/{{ total_images }}</h3>
+                <div class="btn-group">
+                    <button class="btn btn-outline-primary" onclick="toggleMetadata()">
+                        <i class="fas fa-info-circle"></i> Métadonnées
+                    </button>
+                    <button class="btn btn-outline-success" onclick="toggleShortcuts()">
+                        <i class="fas fa-keyboard"></i> Raccourcis
+                    </button>
+                </div>
+            </div>
+            
+            <div class="text-center position-relative">
+                <img id="mainImage" 
+                     src="{{ url_for('uploaded_file', filename=current_image.filename) }}" 
+                     class="image-display" 
+                     alt="Image à annoter"
+                     onmousemove="showMetadataOnHover(event)"
+                     onclick="addAnnotation(event)">
+                <div id="annotationOverlays"></div>
+            </div>
+            
+            <div class="mt-3">
+                <div class="progress mb-2">
+                    <div class="progress-bar" style="width: {{ (current_image.id / total_images * 100) }}%"></div>
+                </div>
+                <small class="text-muted">Progression: {{ current_image.id }}/{{ total_images }} images</small>
+            </div>
+        </div>
+        
+        <div class="controls-panel">
+            <h5 class="mb-3">
+                <i class="fas fa-tags"></i> Annotation
+            </h5>
+            
+            <!-- Classification rapide -->
+            <div class="metadata-card">
+                <h6>Classification Rapide</h6>
+                <div class="btn-group-vertical w-100">
+                    <button class="btn btn-success btn-sm" onclick="quickAnnotate('empty')">
+                        <i class="fas fa-check"></i> Vide (E)
+                    </button>
+                    <button class="btn btn-warning btn-sm" onclick="quickAnnotate('half')">
+                        <i class="fas fa-adjust"></i> À moitié (H)
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="quickAnnotate('full')">
+                        <i class="fas fa-times"></i> Pleine (F)
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="quickAnnotate('unclear')">
+                        <i class="fas fa-question"></i> Incertain (U)
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Annotation détaillée -->
+            <div class="metadata-card">
+                <h6>Annotation Détaillée</h6>
+                <div class="mb-2">
+                    <label class="form-label">Type de poubelle</label>
+                    <select class="form-select form-select-sm" id="binType">
+                        <option value="general">Générale</option>
+                        <option value="recyclage">Recyclage</option>
+                        <option value="organique">Organique</option>
+                        <option value="verre">Verre</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Emplacement</label>
+                    <input type="text" class="form-control form-control-sm" id="location" placeholder="ex: Rue principale">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Commentaire</label>
+                    <textarea class="form-control form-control-sm" id="comment" rows="2"></textarea>
+                </div>
+                <button class="btn btn-primary btn-sm w-100" onclick="saveDetailedAnnotation()">
+                    <i class="fas fa-save"></i> Sauvegarder
+                </button>
+            </div>
+            
+            <!-- Caractéristiques extraites -->
+            <div class="metadata-card" id="featuresCard">
+                <h6>Caractéristiques Extraites</h6>
+                <div class="row">
+                    <div class="col-6">
+                        <small><strong>Luminosité:</strong> {{ "%.1f"|format(current_image.brightness) }}</small>
+                    </div>
+                    <div class="col-6">
+                        <small><strong>Contraste:</strong> {{ "%.1f"|format(current_image.contrast_level) }}</small>
+                    </div>
+                    <div class="col-6">
+                        <small><strong>Contours:</strong> {{ "%.3f"|format(current_image.edge_density) }}</small>
+                    </div>
+                    <div class="col-6">
+                        <small><strong>Saturation:</strong> {{ "%.1f"|format(current_image.saturation or 0) }}</small>
+                    </div>
+                </div>
+                <canvas id="featureChart" class="feature-chart"></canvas>
+            </div>
+            
+            <!-- Historique des annotations -->
+            <div class="metadata-card">
+                <h6>Historique</h6>
+                <div id="annotationHistory">
+                    {% if current_image.manual_annotation %}
+                        <div class="alert alert-info alert-sm">
+                            <i class="fas fa-user"></i> Manuel: {{ current_image.manual_annotation }}
+                        </div>
+                    {% endif %}
+                    {% if current_image.auto_classification %}
+                        <div class="alert alert-secondary alert-sm">
+                            <i class="fas fa-robot"></i> Auto: {{ current_image.auto_classification }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Raccourcis clavier -->
+    <div class="shortcut-hint" id="shortcutHint" style="display: none;">
+        <strong>Raccourcis:</strong><br>
+        E - Vide<br>
+        H - À moitié<br>
+        F - Pleine<br>
+        U - Incertain<br>
+        ← → - Navigation<br>
+        S - Sauvegarder<br>
+        M - Métadonnées<br>
+        ESC - Fermer
+    </div>
+    
+    <!-- Navigation -->
+    <div class="navigation-buttons">
+        <button class="btn btn-primary" onclick="previousImage()" {% if not previous_image %}disabled{% endif %}>
+            <i class="fas fa-arrow-left"></i> Précédent
+        </button>
+        <button class="btn btn-primary" onclick="nextImage()" {% if not next_image %}disabled{% endif %}>
+            <i class="fas fa-arrow-right"></i> Suivant
+        </button>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let currentImageId = {{ current_image.id }};
+        let featureChart;
+        
+        // Initialiser le graphique des caractéristiques
+        document.addEventListener('DOMContentLoaded', function() {
+            initFeatureChart();
+        });
+        
+        function initFeatureChart() {
+            const ctx = document.getElementById('featureChart').getContext('2d');
+            featureChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Luminosité', 'Contraste', 'Contours', 'Saturation', 'Diversité'],
+                    datasets: [{
+                        label: 'Caractéristiques',
+                        data: [
+                            {{ current_image.brightness or 0 }}/255*100,
+                            {{ current_image.contrast_level or 0 }}/100*100,
+                            {{ current_image.edge_density or 0 }}*100,
+                            {{ current_image.saturation or 0 }}/255*100,
+                            {{ current_image.color_diversity or 0 }}*100
+                        ],
+                        borderColor: 'rgb(54, 162, 235)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Raccourcis clavier
+        document.addEventListener('keydown', function(e) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            
+            switch(e.key.toLowerCase()) {
+                case 'e':
+                    quickAnnotate('empty');
+                    break;
+                case 'h':
+                    quickAnnotate('half');
+                    break;
+                case 'f':
+                    quickAnnotate('full');
+                    break;
+                case 'u':
+                    quickAnnotate('unclear');
+                    break;
+                case 'arrowleft':
+                    previousImage();
+                    break;
+                case 'arrowright':
+                    nextImage();
+                    break;
+                case 's':
+                    saveDetailedAnnotation();
+                    break;
+                case 'm':
+                    toggleMetadata();
+                    break;
+                case 'escape':
+                    toggleShortcuts();
+                    break;
+            }
+        });
+        
+        function quickAnnotate(annotation) {
+            fetch(`/annotate/${currentImageId}/${annotation}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Annotation sauvegardée', 'success');
+                    updateAnnotationHistory(annotation);
+                    // Auto-navigation vers l'image suivante
+                    setTimeout(() => nextImage(), 500);
+                } else {
+                    showToast('Erreur lors de la sauvegarde', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                showToast('Erreur réseau', 'error');
+            });
+        }
+        
+        function saveDetailedAnnotation() {
+            const data = {
+                annotation: document.querySelector('input[name="annotation"]:checked')?.value || 'unclear',
+                bin_type: document.getElementById('binType').value,
+                location: document.getElementById('location').value,
+                comment: document.getElementById('comment').value
+            };
+            
+            fetch(`/api/images/${currentImageId}/annotate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Annotation détaillée sauvegardée', 'success');
+                    updateAnnotationHistory(data.annotation);
+                } else {
+                    showToast('Erreur lors de la sauvegarde', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                showToast('Erreur réseau', 'error');
+            });
+        }
+        
+        function previousImage() {
+            {% if previous_image %}
+                window.location.href = `/annotate/{{ previous_image.id }}`;
+            {% endif %}
+        }
+        
+        function nextImage() {
+            {% if next_image %}
+                window.location.href = `/annotate/{{ next_image.id }}`;
+            {% endif %}
+        }
+        
+        function toggleMetadata() {
+            const card = document.getElementById('featuresCard');
+            card.style.display = card.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        function toggleShortcuts() {
+            const hint = document.getElementById('shortcutHint');
+            hint.style.display = hint.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        function showMetadataOnHover(event) {
+            // Afficher les métadonnées au survol
+            const rect = event.target.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            // Créer un tooltip avec les informations de position
+            const tooltip = document.createElement('div');
+            tooltip.className = 'position-absolute bg-dark text-white p-2 rounded';
+            tooltip.style.left = (x + 10) + 'px';
+            tooltip.style.top = (y - 30) + 'px';
+            tooltip.style.fontSize = '12px';
+            tooltip.style.zIndex = '1000';
+            tooltip.innerHTML = `Position: ${Math.round(x)}, ${Math.round(y)}`;
+            
+            // Supprimer les anciens tooltips
+            document.querySelectorAll('.position-absolute.bg-dark').forEach(el => el.remove());
+            
+            event.target.parentElement.appendChild(tooltip);
+            
+            // Supprimer après 2 secondes
+            setTimeout(() => tooltip.remove(), 2000);
+        }
+        
+        function addAnnotation(event) {
+            // Permettre l'ajout d'annotations par clic
+            const rect = event.target.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            // Créer une annotation visuelle
+            const annotation = document.createElement('div');
+            annotation.className = 'annotation-overlay';
+            annotation.style.left = (x - 10) + 'px';
+            annotation.style.top = (y - 10) + 'px';
+            annotation.style.width = '20px';
+            annotation.style.height = '20px';
+            annotation.title = `Annotation à ${Math.round(x)}, ${Math.round(y)}`;
+            
+            document.getElementById('annotationOverlays').appendChild(annotation);
+            
+            // Sauvegarder les métadonnées d'annotation
+            saveAnnotationMetadata(x, y);
+        }
+        
+        function saveAnnotationMetadata(x, y) {
+            const metadata = {
+                type: 'click_annotation',
+                x: x,
+                y: y,
+                timestamp: new Date().toISOString()
+            };
+            
+            fetch(`/api/images/${currentImageId}/metadata`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(metadata)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Métadonnées sauvegardées');
+                }
+            })
+            .catch(error => console.error('Erreur:', error));
+        }
+        
+        function updateAnnotationHistory(annotation) {
+            const history = document.getElementById('annotationHistory');
+            const newEntry = document.createElement('div');
+            newEntry.className = 'alert alert-success alert-sm';
+            newEntry.innerHTML = `<i class="fas fa-user"></i> Manuel: ${annotation} (${new Date().toLocaleTimeString()})`;
+            history.appendChild(newEntry);
+        }
+        
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed`;
+            toast.style.top = '20px';
+            toast.style.left = '20px';
+            toast.style.zIndex = '2000';
+            toast.innerHTML = message;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.remove(), 3000);
+        }
+    </script>
+</body>
+</html>
