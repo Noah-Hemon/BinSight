@@ -8,3 +8,4 @@ scikit-image
 requests
 scikit-learn
 joblib
+requests
