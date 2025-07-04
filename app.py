@@ -2003,6 +2003,29 @@ def delete_all_images():
         print(f"Erreur lors de la suppression de toutes les images: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/delete_image/<int:image_id>', methods=['DELETE'])
+def delete_image(image_id):
+    """Supprime une image et son fichier associé."""
+    try:
+        conn = sqlite3.connect('binsight.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT file_path FROM images WHERE id = ?', (image_id,))
+        row = cursor.fetchone()
+        if row:
+            file_path = row[0]
+            if file_path and os.path.exists(file_path):
+                os.remove(file_path)
+            cursor.execute('DELETE FROM images WHERE id = ?', (image_id,))
+            conn.commit()
+            conn.close()
+            return jsonify({'success': True})
+        else:
+            conn.close()
+            return jsonify({'success': False, 'message': 'Image non trouvée'}), 404
+    except Exception as e:
+        print(f"Erreur suppression image: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/api/classifier_mode', methods=['GET'])
 def get_classifier_mode():
     """Retourne le mode de classification actuel ('rules' ou 'ia')."""
