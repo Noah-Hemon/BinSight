@@ -46,6 +46,69 @@ def parse_db_timestamp(timestamp_str):
         # Sinon, essayer sans
         return datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
 
+def load_translations():
+    """Charge les traductions depuis le fichier JSON."""
+    try:
+        with open('static/translations.json', 'r', encoding='utf-8') as f:
+            translations_data = json.load(f)
+            print(f"✅ Traductions chargées avec succès")
+            print(f"📊 Langues disponibles: {list(translations_data.keys())}")
+            
+            # Vérifier la structure pour le français
+            if 'fr' in translations_data and 'header' in translations_data['fr']:
+                print(f"✅ Structure française valide avec {len(translations_data['fr']['header'])} éléments de header")
+            else:
+                print("⚠️ Structure française manquante ou incomplète")
+            
+            return translations_data
+            
+    except FileNotFoundError:
+        print("❌ Fichier translations.json non trouvé dans static/")
+        return {
+            "fr": {
+                "page_title": "BinSight - Erreur de traduction",
+                "header": {
+                    "home": "Accueil",
+                    "reports": "Signalements",
+                    "statistics": "Statistiques",
+                    "about": "À propos",
+                    "team": "Équipe",
+                    "dashboard": "Dashboard",
+                    "logout": "Déconnexion",
+                    "login": "Connexion"
+                },
+                "messages": {}
+            },
+            "en": {
+                "page_title": "BinSight - Translation Error",
+                "header": {
+                    "home": "Home",
+                    "reports": "Reports", 
+                    "statistics": "Statistics",
+                    "about": "About",
+                    "team": "Team",
+                    "dashboard": "Dashboard",
+                    "logout": "Logout",
+                    "login": "Login"
+                },
+                "messages": {}
+            }
+        }
+    except json.JSONDecodeError as e:
+        print(f"❌ Erreur JSON dans translations.json: {e}")
+        return {
+            "fr": {"page_title": "BinSight - Erreur JSON", "header": {"home": "Accueil"}, "messages": {}},
+            "en": {"page_title": "BinSight - JSON Error", "header": {"home": "Home"}, "messages": {}}
+        }
+    except Exception as e:
+        print(f"❌ Erreur lors du chargement des traductions: {e}")
+        return {
+            "fr": {"page_title": "BinSight - Erreur", "header": {"home": "Accueil"}, "messages": {}},
+            "en": {"page_title": "BinSight - Error", "header": {"home": "Home"}, "messages": {}}
+        }
+
+translations = load_translations()
+
 def migrate_database():
     """Migrer la base de données pour ajouter les colonnes manquantes"""
     conn = sqlite3.connect('binsight.db')
@@ -741,7 +804,31 @@ def log_request_info():
 
 @app.route('/')
 def index():
-    return render_template('BinSight.html')
+    """Page d'accueil principale (français)."""
+    lang = 'fr'
+    is_admin = session.get('logged_in', False)
+    return render_template('BinSight.html', 
+                         translations=translations[lang], 
+                         is_admin=is_admin, 
+                         current_lang=lang)
+
+@app.route('/en')
+def index_en():
+    """Page d'accueil en anglais."""
+    lang = 'en'
+    is_admin = session.get('logged_in', False)
+    return render_template('BinSight.html', 
+                         translations=translations[lang], 
+                         is_admin=is_admin, 
+                         current_lang=lang)
+
+@app.route('/switch-language/<lang>')
+def switch_language(lang):
+    """Basculer entre français et anglais."""
+    if lang == 'en':
+        return redirect('/en')
+    else:
+        return redirect('/')
 
 @app.route('/test')
 def test():
@@ -751,6 +838,8 @@ def test():
         'message': 'Serveur Flask fonctionne',
         'timestamp': datetime.now().isoformat()
     })
+
+
 
 @app.route('/test-db')
 def test_db():
@@ -1369,8 +1458,27 @@ def annotate_interface(image_id):
 
 @app.route('/dashboard')
 def dashboard():
-    """Tableau de bord interactif"""
-    return render_template('dashboard.html')
+    """Tableau de bord interactif (français)."""
+    lang = 'fr'
+    is_admin = session.get('logged_in', False)
+    if not is_admin:
+        return redirect('/login')  # Redirection vers login français
+    return render_template('dashboard.html', 
+                         translations=translations[lang], 
+                         is_admin=is_admin, 
+                         current_lang=lang)
+
+@app.route('/en/dashboard')
+def dashboard_en():
+    """Tableau de bord en anglais."""
+    lang = 'en'
+    is_admin = session.get('logged_in', False)
+    if not is_admin:
+        return redirect('/en/login')  # Redirection vers login anglais
+    return render_template('dashboard.html', 
+                         translations=translations[lang], 
+                         is_admin=is_admin, 
+                         current_lang=lang)
 
 @app.route('/api/dashboard/metrics')
 def dashboard_metrics():
@@ -2055,64 +2163,154 @@ def about():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    # Détecter la langue depuis l'URL ou utiliser français par défaut
+    lang = 'en' if request.path.startswith('/en') else 'fr'
+    
     error = None
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
         if username == 'admin' and password == 'admin':
             session['logged_in'] = True
-            return redirect(url_for('index'))
+            # Rediriger vers la page appropriée selon la langue
+            if lang == 'en':
+                return redirect('/en')
+            else:
+                return redirect(url_for('index'))
         else:
-            error = 'Identifiants invalides'
-    # Formulaire HTML stylisé avec Tailwind et feedback visuel
+            error = translations[lang]['login']['invalid_credentials']
+    
+    # Récupérer les traductions pour la langue actuelle
+    login_translations = translations[lang]['login']
+    
+    # Générer le HTML avec les traductions
+    error_html = f'<div class="mt-4 text-red-600 font-semibold">{error}</div>' if error else ''
+    
     html = f'''
     <!DOCTYPE html>
-    <html lang="fr">
+    <html lang="{lang}">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Connexion Admin - BinSight</title>
+        <title>{login_translations['title']}</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>
             body {{ background: linear-gradient(120deg, #4ade80 0%, #2563eb 100%); }}
-            .login-card {{ box-shadow: 0 8px 32px #0003, 0 0 0 4px #4ade80cc; }}
-            .login-card input:focus {{ border-color: #2563eb; box-shadow: 0 0 0 2px #2563eb33; }}
-            .login-card button:active {{ transform: scale(0.98); }}
+            .login-card {{ 
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 0 0 4px rgba(74, 222, 128, 0.2); 
+                backdrop-filter: blur(10px);
+            }}
+            .login-card input:focus {{ 
+                border-color: #2563eb; 
+                box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2); 
+            }}
+            .login-card button:hover {{
+                background-color: #16a34a;
+                transform: translateY(-1px);
+            }}
+            .login-card button:active {{ 
+                transform: scale(0.98); 
+            }}
+            .language-switcher {{
+                position: absolute;
+                top: 20px;
+                right: 20px;
+            }}
+            .language-switcher a {{
+                color: white;
+                text-decoration: none;
+                background: rgba(255, 255, 255, 0.2);
+                padding: 8px 12px;
+                border-radius: 6px;
+                transition: all 0.3s ease;
+            }}
+            .language-switcher a:hover {{
+                background: rgba(255, 255, 255, 0.3);
+                transform: translateY(-1px);
+            }}
         </style>
     </head>
-    <body class="flex items-center justify-center min-h-screen">
-        <div class="login-card bg-white p-8 rounded-2xl w-full max-w-md flex flex-col items-center">
+    <body class="flex items-center justify-center min-h-screen relative">
+        <!-- Sélecteur de langue -->
+        <div class="language-switcher">
+            <a href="/{'login' if lang == 'en' else 'en/login'}">
+                <i class="fas fa-globe mr-2"></i>
+                {'FR' if lang == 'en' else 'EN'}
+            </a>
+        </div>
+        
+        <div class="login-card bg-white/90 p-8 rounded-2xl w-full max-w-md flex flex-col items-center">
             <div class="mb-6 flex flex-col items-center">
                 <img src="/static/img/logo_binsight.png" alt="Logo BinSight" class="h-16 mb-2">
-                <h2 class="text-2xl font-bold text-gray-800">Connexion Admin</h2>
-                <p class="text-gray-500 text-sm mt-1">Accès réservé à l'administration</p>
+                <h2 class="text-2xl font-bold text-gray-800">{login_translations['heading']}</h2>
+                <p class="text-gray-500 text-sm mt-1">{login_translations['subtitle']}</p>
             </div>
+            
             <form method="POST" class="w-full">
                 <div class="mb-4">
-                    <label class="block text-gray-700 font-medium mb-1">Nom d'utilisateur</label>
-                    <input type="text" name="username" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 transition" required autofocus placeholder="admin">
+                    <label class="block text-gray-700 font-medium mb-1">
+                        {login_translations['username_label']}
+                    </label>
+                    <input 
+                        type="text" 
+                        name="username" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 transition" 
+                        required 
+                        autofocus 
+                        placeholder="{login_translations['username_placeholder']}"
+                    >
                 </div>
+                
                 <div class="mb-6">
-                    <label class="block text-gray-700 font-medium mb-1">Mot de passe</label>
-                    <input type="password" name="password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 transition" required placeholder="admin">
+                    <label class="block text-gray-700 font-medium mb-1">
+                        {login_translations['password_label']}
+                    </label>
+                    <input 
+                        type="password" 
+                        name="password" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 transition" 
+                        required 
+                        placeholder="{login_translations['password_placeholder']}"
+                    >
                 </div>
-                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-semibold text-lg shadow transition flex items-center justify-center gap-2">
-                    <i class="fas fa-sign-in-alt"></i> Se connecter
+                
+                <button 
+                    type="submit" 
+                    class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-semibold text-lg shadow transition flex items-center justify-center gap-2"
+                >
+                    <i class="fas fa-sign-in-alt"></i> 
+                    {login_translations['submit_btn']}
                 </button>
             </form>
-            {f'<div class=\"mt-4 text-red-600 font-semibold\">{error}</div>' if error else ''}
-            <div class="mt-6 text-center text-gray-400 text-xs">© 2025 BinSight</div>
+            
+            {error_html}
+            
+            <div class="mt-6 text-center text-gray-400 text-xs">
+                {login_translations['copyright']}
+            </div>
         </div>
     </body>
     </html>
     '''
     return html
 
+# Ajouter la route pour la version anglaise
+@app.route('/en/login', methods=['GET', 'POST'])
+def login_en():
+    """Version anglaise de la page de connexion"""
+    # Rediriger vers la fonction login principale avec le bon contexte
+    return login()
+
 @app.route('/logout')
 def logout():
     session.pop('logged_in', None)
     return redirect(url_for('index'))
+
+@app.route('/en/logout')
+def logout_en():
+    session.pop('logged_in', None)
+    return redirect('/en')
 
 @app.context_processor
 def inject_is_admin():

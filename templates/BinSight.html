@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="{{ 'en' if current_lang == 'en' else 'fr' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BinSight - Surveillance Intelligente des Poubelles Publiques</title>
+    <title>{{ translations.page_title }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -60,107 +60,113 @@
     <header class="bg-green-600 text-white shadow-lg">
         <div class="container mx-auto px-4 py-6 flex justify-between items-center">
             <div class="flex items-center space-x-2">
-                <img src="{{ url_for('static', filename='img/logo_binsight.png') }}" alt="Logo BinSight" class="h-12 w-12 mr-2">
+                <img src="{{ url_for('static', filename='img/logo_binsight.png') }}" alt="Logo BinSight" class="h-14 w-14 mr-2">
                 <h1 class="text-2xl font-bold">BinSight</h1>
             </div>
             <nav class="hidden md:flex space-x-6">
-                <a href="#hero-section" class="hover:text-green-200 font-medium">Accueil</a>
-                <a href="#signalement-section" class="hover:text-green-200 font-medium">Signalements</a>
-                <a href="#stats-section" class="hover:text-green-200 font-medium">Statistiques</a>
-                <a href="#about-section" class="hover:text-green-200 font-medium">À propos</a>
-                <a href="/about" class="hover:text-green-200 font-medium">L'équipe de BinSight</a>
+                <a href="#hero-section" class="hover:text-green-200 font-medium">{{ translations.header.home }}</a>
+                <a href="#signalement-section" class="hover:text-green-200 font-medium">{{ translations.header.reports }}</a>
+                <a href="#stats-section" class="hover:text-green-200 font-medium">{{ translations.header.statistics }}</a>
+                <a href="#about-section" class="hover:text-green-200 font-medium">{{ translations.header.about }}</a>
+                <a href="/about" class="hover:text-green-200 font-medium">{{ translations.header.team }}</a>
             </nav>
             <div class="flex items-center space-x-4">
                 {% if is_admin %}
-                    <a href="/logout" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg font-medium transition text-white">
-                        <i class="fas fa-sign-out-alt mr-2"></i>Déconnexion
+                    <a href="{{ '/en/dashboard' if current_lang == 'en' else '/dashboard' }}" class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition">
+                        <i class="fas fa-chart-bar mr-2"></i>{{ translations.header.dashboard }}
+                    </a>
+                    <a href="{{ '/en/logout' if current_lang == 'en' else '/logout' }}" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition">
+                        <i class="fas fa-sign-out-alt mr-2"></i>{{ translations.header.logout }}
                     </a>
                 {% else %}
-                    <a href="/login" class="bg-green-700 hover:bg-green-800 px-4 py-2 rounded-lg font-medium transition text-white">
-                        <i class="fas fa-user mr-2"></i>Connexion
+                    <a href="{{ '/en/login' if current_lang == 'en' else '/login' }}" class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition">
+                        <i class="fas fa-sign-in-alt mr-2"></i>{{ translations.header.login }}
                     </a>
                 {% endif %}
-                <button class="md:hidden text-2xl" id="mobile-menu-button">
-                    <i class="fas fa-bars"></i>
+                
+                <!-- Bouton de changement de langue -->
+                <button onclick="switchLanguage()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition flex items-center">
+                    <i class="fas fa-globe mr-2"></i>
+                    <span>{{ 'FR' if current_lang == 'en' else 'EN' }}</span>
                 </button>
             </div>
+            <!-- Mobile menu button -->
+            <button id="mobile-menu-button" class="md:hidden text-white">
+                <i class="fas fa-bars"></i>
+            </button>
         </div>
         <!-- Mobile menu -->
-        <div class="md:hidden hidden bg-green-700 px-4 py-2" id="mobile-menu">
-            <a href="#hero-section" class="block py-2 hover:text-green-200">Accueil</a>
-            <a href="#signalement-section" class="block py-2 hover:text-green-200">Signalements</a>
-            <a href="#stats-section" class="block py-2 hover:text-green-200">Statistiques</a>
-            <a href="#about-section" class="block py-2 hover:text-green-200">À propos</a>
-            <a href="/about" class="block py-2 hover:text-green-200">À propos de BinSight</a>
+        <div id="mobile-menu" class="md:hidden bg-green-700 px-4 py-2 hidden">
+            <a href="#hero-section" class="block py-2 hover:text-green-200">{{ translations.header.home }}</a>
+            <a href="#signalement-section" class="block py-2 hover:text-green-200">{{ translations.header.reports }}</a>
+            <a href="#stats-section" class="block py-2 hover:text-green-200">{{ translations.header.statistics }}</a>
+            <a href="#about-section" class="block py-2 hover:text-green-200">{{ translations.header.about }}</a>
         </div>
     </header>
 
     <!-- Hero Section -->
-    <section id="hero-section" class="bg-gradient-to-r from-green-500 to-green-700 text-white py-16">
+    <section id="hero-section" class="bg-gradient-to-r from-green-600 to-green-800 text-white py-20">
         <div class="container mx-auto px-4 text-center">
-            <h2 class="text-4xl font-bold mb-4">Surveillance Intelligente des Poubelles Publiques</h2>
-            <p class="text-xl mb-8 max-w-3xl mx-auto">
-                Une solution innovante pour détecter l'état des poubelles et améliorer la gestion des déchets urbains
-            </p>
-            <div class="flex flex-col md:flex-row justify-center gap-4">
-                <button id="scroll-report-btn" class="bg-white text-green-700 hover:bg-gray-100 px-6 py-3 rounded-lg font-bold text-lg transition shadow-lg">
-                    <i class="fas fa-upload mr-2"></i>Signaler une poubelle
+            <h1 class="text-5xl font-bold mb-6">{{ translations.hero.title }}</h1>
+            <p class="text-xl mb-8 max-w-3xl mx-auto">{{ translations.hero.description }}</p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button id="scroll-report-btn" class="bg-white text-green-600 px-8 py-3 rounded-lg font-semibold hover:bg-green-50 transition">
+                    <i class="fas fa-camera mr-2"></i>{{ translations.hero.report_btn }}
                 </button>
-                <button id="scroll-map-btn" class="bg-transparent border-2 border-white hover:bg-white hover:text-green-700 px-6 py-3 rounded-lg font-bold text-lg transition">
-                    <i class="fas fa-map-marked-alt mr-2"></i>Voir la carte
+                <button id="scroll-map-btn" class="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-green-600 transition">
+                    <i class="fas fa-map mr-2"></i>{{ translations.hero.map_btn }}
                 </button>
             </div>
         </div>
     </section>
 
-    <!-- Main Content -->
     <main class="container mx-auto px-4 py-12">
-        <!-- Upload Section -->
+        <!-- Report Section -->
         <section id="signalement-section" class="mb-16">
-            <h2 class="text-3xl font-bold mb-8 text-center">Signaler une poubelle</h2>
+            <h2 class="text-3xl font-bold mb-8 text-center">{{ translations.report_section.title }}</h2>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div class="file-upload" id="drop-area">
                     <i class="fas fa-cloud-upload-alt text-5xl text-green-500 mb-4"></i>
-                    <h3 class="text-xl font-semibold mb-2">Déposez votre image ici</h3>
-                    <p class="text-gray-500 mb-4">ou</p>
+                    <h3 class="text-xl font-semibold mb-2">{{ translations.report_section.drop_text }}</h3>
+                    <p class="text-gray-500 mb-4">{{ translations.report_section.or }}</p>
                     <input type="file" id="file-input" accept="image/*" class="hidden">
                     <label for="file-input" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg cursor-pointer transition">
-                        <i class="fas fa-folder-open mr-2"></i>Parcourir les fichiers
+                        <i class="fas fa-folder-open mr-2"></i>{{ translations.report_section.browse_files }}
                     </label>
-                    <p class="text-sm text-gray-500 mt-4">Formats supportés: JPG, PNG, JPEG</p>
+                    <p class="text-sm text-gray-500 mt-4">{{ translations.report_section.supported_formats }}</p>
                 </div>
                 <div>
-                    <h3 class="text-xl font-semibold mb-4">Ajouter des détails</h3>
+                    <h3 class="text-xl font-semibold mb-4">{{ translations.report_section.details_title }}</h3>
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-gray-700 mb-2">Localisation</label>
-                            <input type="text" id="location-input" placeholder="Adresse ou coordonnées GPS" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                            <label class="block text-gray-700 mb-2">{{ translations.report_section.location_label }}</label>
+                            <input type="text" id="location-input" placeholder="{{ translations.report_section.location_placeholder }}" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
                         </div>
                         <div>
-                            <label class="block text-gray-700 mb-2">Type de poubelle</label>
+                            <label class="block text-gray-700 mb-2">{{ translations.report_section.bin_type_label }}</label>
                             <select id="bin-type-select" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
-                                <option>Sélectionnez un type</option>
-                                <option>Poubelle standard</option>
-                                <option>Poubelle de tri</option>
-                                <option>Conteneur</option>
-                                <option>Autre</option>
+                                <option>{{ translations.report_section.bin_type_select }}</option>
+                                <option>{{ translations.report_section.bin_type_standard }}</option>
+                                <option>{{ translations.report_section.bin_type_recycling }}</option>
+                                <option>{{ translations.report_section.bin_type_container }}</option>
+                                <option>{{ translations.report_section.bin_type_other }}</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-gray-700 mb-2">État de la poubelle</label>
+                            <label class="block text-gray-700 mb-2">{{ translations.report_section.status_label }}</label>
                             <select id="status-select" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
-                                <option value="" id="auto-classify-option">Laissez l'IA décider</option>
-                                <option value="pleine">Pleine</option>
-                                <option value="vide">Vide</option>
+                                <option value="" id="auto-classify-option">{{ translations.report_section.status_ai }}</option>
+                                <option value="pleine">{{ translations.report_section.status_full }}</option>
+                                <option value="vide">{{ translations.report_section.status_empty }}</option>
                             </select>
-                            <p class="text-sm text-gray-500 mt-1" id="auto-classify-help">Si vous ne sélectionnez rien, l'IA analysera automatiquement l'image</p>
+                            <p class="text-sm text-gray-500 mt-1" id="auto-classify-help">{{ translations.report_section.status_help }}</p>
                         </div>
                         <div>
-                            <label class="block text-gray-700 mb-2">Commentaire (optionnel)</label>
-                            <textarea id="comment-textarea" rows="3" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Ajoutez des détails supplémentaires..."></textarea>
+                            <label class="block text-gray-700 mb-2">{{ translations.report_section.comment_label }}</label>
+                            <textarea id="comment-textarea" rows="3" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="{{ translations.report_section.comment_placeholder }}"></textarea>
                         </div>
                         <button id="submit-btn" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition w-full">
-                            <i class="fas fa-paper-plane mr-2"></i>Envoyer le signalement
+                            <i class="fas fa-paper-plane mr-2"></i>{{ translations.report_section.submit_btn }}
                         </button>
                     </div>
                 </div>
@@ -170,13 +176,13 @@
         <!-- Map Section -->
         <section id="map-section" class="mb-16">
             <div class="flex justify-between items-center mb-6">
-                <h2 class="text-3xl font-bold">Cartographie des poubelles</h2>
+                <h2 class="text-3xl font-bold">{{ translations.map_section.title }}</h2>
                 <div class="flex space-x-2">
                     <button class="bg-green-600 text-white px-4 py-2 rounded-lg">
-                        <i class="fas fa-filter mr-2"></i>Filtrer
+                        <i class="fas fa-filter mr-2"></i>{{ translations.map_section.filter_btn }}
                     </button>
                     <button class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg transition" onclick="loadMapData()">
-                        <i class="fas fa-sync-alt mr-2"></i>Actualiser
+                        <i class="fas fa-sync-alt mr-2"></i>{{ translations.map_section.refresh_btn }}
                     </button>
                 </div>
             </div>
@@ -185,11 +191,11 @@
                 <div class="flex justify-center mt-4 space-x-6">
                     <div class="flex items-center">
                         <span class="status-indicator status-empty"></span>
-                        <span>Vide</span>
+                        <span>{{ translations.map_section.legend_empty }}</span>
                     </div>
                     <div class="flex items-center">
                         <span class="status-indicator status-full"></span>
-                        <span>Pleine</span>
+                        <span>{{ translations.map_section.legend_full }}</span>
                     </div>
                 </div>
             </div>
@@ -197,28 +203,28 @@
 
         <!-- Stats Section -->
         <section id="stats-section" class="mb-16">
-            <h2 class="text-3xl font-bold mb-8 text-center">Statistiques et analyses</h2>
+            <h2 class="text-3xl font-bold mb-8">{{ translations.stats_section.title }}</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div class="bg-white p-6 rounded-xl shadow-lg">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-gray-500">Signalements aujourd'hui</p>
+                            <p class="text-gray-500">{{ translations.stats_section.today_reports }}</p>
                             <h3 id="today-uploads" class="text-3xl font-bold mt-2">0</h3>
                         </div>
-                        <div class="bg-green-100 p-3 rounded-full">
-                            <i class="fas fa-upload text-green-600 text-xl"></i>
+                        <div class="bg-blue-100 p-3 rounded-full">
+                            <i class="fas fa-upload text-blue-600 text-xl"></i>
                         </div>
                     </div>
                     <div class="mt-4">
-                        <p class="text-green-600 font-medium">
-                            <i class="fas fa-arrow-up mr-1"></i>En temps réel
+                        <p class="text-blue-600 font-medium">
+                            <i class="fas fa-arrow-up mr-1"></i>{{ translations.stats_section.realtime }}
                         </p>
                     </div>
                 </div>
                 <div class="bg-white p-6 rounded-xl shadow-lg">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-gray-500">Poubelles pleines</p>
+                            <p class="text-gray-500">{{ translations.stats_section.full_bins }}</p>
                             <h3 id="full-bins" class="text-3xl font-bold mt-2">0</h3>
                         </div>
                         <div class="bg-red-100 p-3 rounded-full">
@@ -227,14 +233,14 @@
                     </div>
                     <div class="mt-4">
                         <p class="text-red-600 font-medium">
-                            <i class="fas fa-arrow-up mr-1"></i>Surveillance active
+                            <i class="fas fa-arrow-up mr-1"></i>{{ translations.stats_section.active_monitoring }}
                         </p>
                     </div>
                 </div>
                 <div class="bg-white p-6 rounded-xl shadow-lg">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-gray-500">Taux de précision</p>
+                            <p class="text-gray-500">{{ translations.stats_section.accuracy_rate }}</p>
                             <h3 id="accuracy" class="text-3xl font-bold mt-2">0%</h3>
                         </div>
                         <div class="bg-blue-100 p-3 rounded-full">
@@ -243,188 +249,203 @@
                     </div>
                     <div class="mt-4">
                         <p class="text-blue-600 font-medium">
-                            <i class="fas fa-arrow-up mr-1"></i>IA en apprentissage
+                            <i class="fas fa-arrow-up mr-1"></i>{{ translations.stats_section.ai_learning }}
                         </p>
                     </div>
                 </div>
             </div>
             <div class="bg-white p-6 rounded-xl shadow-lg">
-                <canvas id="statsChart" height="300"></canvas>
+                <h3 class="text-xl font-bold mb-4">{{ translations.stats_section.monthly_reports }}</h3>
+                <div style="height: 300px;">
+                    <canvas id="statsChart"></canvas>
+                </div>
             </div>
         </section>
 
-        <!-- Recent Reports -->
-        <section>
-            <h2 class="text-3xl font-bold mb-6">Derniers signalements</h2>
+        <!-- Recent Reports Section -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold mb-8">{{ translations.recent_reports.title }}</h2>
             <div class="bg-white rounded-xl shadow-lg overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200" id="recent-reports-table">
+                    <table id="recent-reports-table" class="w-full">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Localisation</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ translations.recent_reports.table_image }}</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ translations.recent_reports.table_location }}</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ translations.recent_reports.table_status }}</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ translations.recent_reports.table_date }}</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ translations.recent_reports.table_actions }}</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            <!-- Les signalements seront chargés dynamiquement -->
+                            <!-- Reports will be loaded dynamically -->
                         </tbody>
                     </table>
                 </div>
                 <div class="bg-gray-50 px-6 py-3 text-center text-gray-500" id="no-reports" style="display: none;">
-                    Aucun signalement pour le moment
+                    {{ translations.recent_reports.no_reports }}
                 </div>
-                <!-- NOUVEAU: Conteneur pour les contrôles de pagination -->
                 <div id="pagination-controls" class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-                    <!-- Les contrôles de pagination seront générés dynamiquement ici -->
+                    <!-- Pagination controls will be generated dynamically here -->
                 </div>
             </div>
         </section>
 
-        <!-- NOUVEAU: Section Outils d'Administration -->
+        <!-- Admin Tools Section (if admin) -->
         {% if is_admin %}
         <section class="mb-16">
-            <h2 class="text-3xl font-bold mb-6">Outils d'Administration</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- Outil 1: Vérification de l'intégrité -->
+            <h2 class="text-3xl font-bold mb-8">{{ translations.admin_tools.title }}</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Tool 1: Integrity Check -->
                 <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col">
                     <div class="flex-grow">
-                        <h3 class="text-xl font-bold text-gray-800">Vérification de l'intégrité</h3>
-                        <p class="text-gray-600 mt-1">
-                            Analysez la base de données pour trouver les fichiers manquants ou orphelins.
-                        </p>
+                        <h3 class="text-xl font-bold text-gray-800">{{ translations.admin_tools.integrity_title }}</h3>
+                        <p class="text-gray-600 mt-1">{{ translations.admin_tools.integrity_desc }}</p>
                     </div>
-                    <div id="integrity-report-container" class="mt-4"></div>
-                    <button id="verify-integrity-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition mt-4 w-full">
-                        <i class="fas fa-shield-alt mr-2"></i>Lancer la vérification
-                    </button>
-                </div>
-
-                <!-- Outil 2: Importation en masse -->
-                <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col">
-                    <div class="flex-grow">
-                        <h3 class="text-xl font-bold text-gray-800">Importation en masse</h3>
-                        <p class="text-gray-600 mt-1">
-                            Importer toutes les images des dossiers `Data/test` et `Data/train`.
-                        </p>
-                    </div>
-                    <div id="batch-import-report-container" class="mt-4"></div>
-                    <button id="batch-import-btn" class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg transition mt-4 w-full">
-                        <i class="fas fa-file-import mr-2"></i>Démarrer l'importation
+                    <div id="integrity-report-container" class="mt-4 hidden"></div>
+                    <button id="verify-integrity-btn" class="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg transition mt-4 w-full">
+                        <i class="fas fa-search mr-2"></i>{{ translations.admin_tools.integrity_btn }}
                     </button>
                 </div>
                 
-                <!-- NOUVEAU: Outil 3: Ré-analyse complète -->
+                <!-- Tool 2: Batch Import -->
                 <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col">
                     <div class="flex-grow">
-                        <h3 class="text-xl font-bold text-gray-800">Ré-analyse complète</h3>
-                        <p class="text-gray-600 mt-1">
-                            Appliquer à nouveau l'algorithme de classification sur toutes les images existantes.
-                        </p>
+                        <h3 class="text-xl font-bold text-gray-800">{{ translations.admin_tools.batch_import_title }}</h3>
+                        <p class="text-gray-600 mt-1">{{ translations.admin_tools.batch_import_desc }}</p>
+                    </div>
+                    <div id="batch-import-report-container" class="mt-4"></div>
+                    <button id="batch-import-btn" class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg transition mt-4 w-full">
+                        <i class="fas fa-file-import mr-2"></i>{{ translations.admin_tools.batch_import_btn }}
+                    </button>
+                </div>
+                
+                <!-- Tool 3: Re-analysis -->
+                <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col">
+                    <div class="flex-grow">
+                        <h3 class="text-xl font-bold text-gray-800">{{ translations.admin_tools.reanalysis_title }}</h3>
+                        <p class="text-gray-600 mt-1">{{ translations.admin_tools.reanalysis_desc }}</p>
                     </div>
                     <div id="reclassify-report-container" class="mt-4"></div>
                     <button id="reclassify-btn" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg transition mt-4 w-full">
-                        <i class="fas fa-sync-alt mr-2"></i>Lancer la ré-analyse
+                        <i class="fas fa-redo mr-2"></i>{{ translations.admin_tools.reanalysis_btn }}
                     </button>
                 </div>
-
-                <!-- Outil 4: Suppression de toutes les images -->
+                
+                <!-- Tool 4: Cleanup -->
                 <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col">
                     <div class="flex-grow">
-                        <h3 class="text-xl font-bold text-gray-800">Suppression de toutes les images</h3>
-                        <p class="text-gray-600 mt-1">
-                            Supprime toutes les images et leurs données de la base de données et du serveur.
-                        </p>
+                        <h3 class="text-xl font-bold text-gray-800">{{ translations.admin_tools.cleanup_title }}</h3>
+                        <p class="text-gray-600 mt-1">{{ translations.admin_tools.cleanup_desc }}</p>
                     </div>
-                    <div id="delete-all-report-container" class="mt-4"></div>
-                    <button id="delete-all-btn" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition mt-4 w-full">
-                        <i class="fas fa-trash-alt mr-2"></i>Supprimer toutes les images
+                    <div id="cleanup-report-container" class="mt-4"></div>
+                    <button id="cleanup-btn" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition mt-4 w-full">
+                        <i class="fas fa-trash mr-2"></i>{{ translations.admin_tools.cleanup_btn }}
                     </button>
                 </div>
-
-                <!-- Outil 5: Sélecteur de mode de classification -->
+                
+                <!-- Tool 5: Classification Mode -->
                 <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col">
                     <div class="flex-grow">
-                        <h3 class="text-xl font-bold text-gray-800">Mode de classification</h3>
-                        <p class="text-gray-600 mt-1">
-                            Choisissez la méthode de classification utilisée pour les nouvelles images.
-                        </p>
+                        <h3 class="text-xl font-bold text-gray-800">{{ translations.admin_tools.classifier_mode_title }}</h3>
+                        <p class="text-gray-600 mt-1">{{ translations.admin_tools.classifier_mode_desc }}</p>
                         <select id="classifier-mode-select" class="mt-4 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 w-full">
-                            <option value="ia">IA (Intelligence Artificielle)</option>
-                            <option value="rules">Règles (logique experte)</option>
+                            <option value="ia">{{ translations.admin_tools.classifier_ai }}</option>
+                            <option value="rules">{{ translations.admin_tools.classifier_rules }}</option>
                         </select>
                         <div id="classifier-mode-status" class="mt-2 text-sm text-gray-500"></div>
                     </div>
                 </div>
 
-                <!-- Outil 6: Réentraînement IA -->
+                <!-- Tool 6: AI Retraining -->
                 <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col">
                     <div class="flex-grow">
-                        <h3 class="text-xl font-bold text-gray-800">Réentraînement IA</h3>
-                        <p class="text-gray-600 mt-1">
-                            Relance l'entraînement du modèle IA sur les images labellisées.<br>
-                            Les métriques s'affichent dans la console serveur.
-                        </p>
+                        <h3 class="text-xl font-bold text-gray-800">{{ translations.admin_tools.retrain_title }}</h3>
+                        <p class="text-gray-600 mt-1">{{ translations.admin_tools.retrain_desc | safe }}</p>
                     </div>
-                    <button id="retrain-ia-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition mt-4 w-full">
-                        <i class="fas fa-robot mr-2"></i>Réentraîner l'IA
+                    <button id="retrain-ia-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg transition mt-4 w-full">
+                        <i class="fas fa-robot mr-2"></i>{{ translations.admin_tools.retrain_btn }}
                     </button>
                 </div>
             </div>
         </section>
         {% endif %}
-    </main>
 
-    <!-- About Section -->
-    <section id="about-section" class="bg-white py-16">
-        <div class="container mx-auto px-4 text-center">
-            <h2 class="text-3xl font-bold mb-4">À propos de BinSight</h2>
-            <p class="text-lg text-gray-700 max-w-2xl mx-auto">
-                BinSight est une solution innovante de surveillance intelligente des poubelles publiques, utilisant l'intelligence artificielle pour améliorer la gestion des déchets urbains. Notre mission est de rendre les villes plus propres et plus efficaces grâce à la technologie.
-            </p>
-        </div>
-    </section>
+        <!-- About Section -->
+        <section id="about-section" class="mb-16">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold mb-4">{{ translations.about_section.title }}</h2>
+                <p class="text-gray-600 max-w-3xl mx-auto">{{ translations.about_section.description }}</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="text-center">
+                    <div class="bg-green-100 p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                        <i class="fas fa-brain text-green-600 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">{{ translations.about_section.ai_title }}</h3>
+                    <p class="text-gray-600">{{ translations.about_section.ai_desc }}</p>
+                </div>
+                <div class="text-center">
+                    <div class="bg-blue-100 p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                        <i class="fas fa-map-marked-alt text-blue-600 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">{{ translations.about_section.mapping_title }}</h3>
+                    <p class="text-gray-600">{{ translations.about_section.mapping_desc }}</p>
+                </div>
+                <div class="text-center">
+                    <div class="bg-purple-100 p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                        <i class="fas fa-chart-line text-purple-600 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">{{ translations.about_section.analytics_title }}</h3>
+                    <p class="text-gray-600">{{ translations.about_section.analytics_desc }}</p>
+                </div>
+            </div>
+        </section>
+    </main>
 
     <!-- Footer -->
     <footer class="bg-gray-800 text-white py-12">
         <div class="container mx-auto px-4">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
                 <div>
-                    <h3 class="text-xl font-bold mb-4 flex items-center">
-                        <i class="fas fa-trash-alt mr-2"></i> BinSight
-                    </h3>
-                    <p class="text-gray-400">
-                        Une solution innovante pour améliorer la gestion des déchets urbains grâce à l'intelligence artificielle.
-                    </p>
+                    <h4 class="text-lg font-semibold mb-4">BinSight</h4>
+                    <p class="text-gray-400 mb-4">{{ translations.footer.description }}</p>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-gray-400 hover:text-white transition">
+                            <i class="fab fa-twitter"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-white transition">
+                            <i class="fab fa-facebook"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-white transition">
+                            <i class="fab fa-linkedin"></i>
+                        </a>
+                    </div>
                 </div>
                 <div>
-                    <h4 class="text-lg font-semibold mb-4">Liens rapides</h4>
+                    <h4 class="text-lg font-semibold mb-4">{{ translations.footer.navigation }}</h4>
                     <ul class="space-y-2">
-                        <li><a href="#" class="text-gray-400 hover:text-white transition">Accueil</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-white transition">Signalements</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-white transition">Statistiques</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-white transition">À propos</a></li>
-                        <li><a href="/about" class="text-gray-400 hover:text-white transition">À propos de BinSight</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">{{ translations.header.home }}</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">{{ translations.header.reports }}</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">{{ translations.header.statistics }}</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">{{ translations.header.about }}</a></li>
+                        <li><a href="/about" class="text-gray-400 hover:text-white transition">{{ translations.header.team }}</a></li>
                     </ul>
                 </div>
                 <div>
-                    <h4 class="text-lg font-semibold mb-4">Ressources</h4>
+                    <h4 class="text-lg font-semibold mb-4">{{ translations.footer.resources }}</h4>
                     <ul class="space-y-2">
-                        <li><a href="#" class="text-gray-400 hover:text-white transition">Documentation</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-white transition">API</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-white transition">FAQ</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-white transition">Contact</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">{{ translations.footer.documentation }}</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">{{ translations.footer.api }}</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">{{ translations.footer.faq }}</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">{{ translations.footer.contact }}</a></li>
                     </ul>
                 </div>
                 <div>
-                    <h4 class="text-lg font-semibold mb-4">Newsletter</h4>
-                    <p class="text-gray-400 mb-4">
-                        Abonnez-vous pour recevoir les dernières actualités et mises à jour.
-                    </p>
+                    <h4 class="text-lg font-semibold mb-4">{{ translations.footer.newsletter }}</h4>
+                    <p class="text-gray-400 mb-4">{{ translations.footer.newsletter_desc }}</p>
                     <div class="flex">
-                        <input type="email" placeholder="Votre email" class="px-4 py-2 rounded-l-lg w-full focus:outline-none text-gray-800">
+                        <input type="email" placeholder="{{ translations.footer.email_placeholder }}" class="px-4 py-2 rounded-l-lg w-full focus:outline-none text-gray-800">
                         <button class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-r-lg transition">
                             <i class="fas fa-paper-plane"></i>
                         </button>
@@ -432,22 +453,10 @@
                 </div>
             </div>
             <div class="border-t border-gray-700 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
-                <p class="text-gray-400 mb-4 md:mb-0">
-                    © 2025 BinSight. Tous droits réservés.
-                </p>
+                <p class="text-gray-400 mb-4 md:mb-0">{{ translations.footer.rights }}</p>
                 <div class="flex space-x-6">
-                    <a href="https://en.wikipedia.org/wiki/Special:Random" class="text-gray-400 hover:text-white transition">
-                        <i class="fab fa-facebook-f"></i>
-                    </a>
-                    <a href="https://en.wikipedia.org/wiki/Special:Random" class="text-gray-400 hover:text-white transition">
-                        <i class="fab fa-twitter"></i>
-                    </a>
-                    <a href="https://en.wikipedia.org/wiki/Special:Random" class="text-gray-400 hover:text-white transition">
-                        <i class="fab fa-instagram"></i>
-                    </a>
-                    <a href="https://en.wikipedia.org/wiki/Special:Random" class="text-gray-400 hover:text-white transition">
-                        <i class="fab fa-linkedin-in"></i>
-                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white transition">{{ translations.footer.privacy }}</a>
+                    <a href="#" class="text-gray-400 hover:text-white transition">{{ translations.footer.terms }}</a>
                 </div>
             </div>
         </div>
@@ -457,6 +466,94 @@
 let poubelles = [];
 let currentImageId = null;
 let map;
+
+// Variables globales pour les traductions
+const currentLang = '{{ current_lang }}';
+const messages = {{ translations.messages | tojson | safe }};
+const chartTranslations = {{ translations.charts | tojson | safe }};
+
+// Fonction de changement de langue
+function switchLanguage() {
+    const currentPath = window.location.pathname;
+    if (currentPath === '/en' || currentPath.startsWith('/en/')) {
+        // Actuellement en anglais, passer au français
+        window.location.href = '/';
+    } else {
+        // Actuellement en français, passer à l'anglais
+        window.location.href = '/en';
+    }
+}
+
+// Mettre à jour les messages en fonction de la langue
+function showSuccessMessage(message) {
+    // Utiliser les messages traduits
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 max-w-md';
+    notification.innerHTML = `
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                <i class="fas fa-check-circle text-xl mr-3"></i>
+            </div>
+            <div class="flex-1">
+                <span class="font-medium">${message}</span>
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200 flex-shrink-0">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    document.body.appendChild(notification);
+    
+    // Animation d'entrée
+    setTimeout(() => {
+        notification.style.transform = 'translateX(0)';
+        notification.style.opacity = '1';
+    }, 100);
+    
+    // Supprimer automatiquement après 7 secondes
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateX(100%)';
+            setTimeout(() => notification.remove(), 300);
+        }
+    }, 7000);
+}
+
+function showErrorMessage(message) {
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 max-w-md';
+    notification.innerHTML = `
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-triangle text-xl mr-3"></i>
+            </div>
+            <div class="flex-1">
+                <span class="font-medium">${message}</span>
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200 flex-shrink-0">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    document.body.appendChild(notification);
+    
+    // Animation d'entrée
+    setTimeout(() => {
+        notification.style.transform = 'translateX(0)';
+        notification.style.opacity = '1';
+    }, 100);
+    
+    // Supprimer automatiquement après 7 secondes
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateX(100%)';
+            setTimeout(() => notification.remove(), 300);
+        }
+    }, 7000);
+}
+
 
 // Mobile menu toggle
 document.getElementById('mobile-menu-button').addEventListener('click', function() {
@@ -1127,7 +1224,17 @@ function updateTrendIndicators(data) {
     }
 }
 
-// Fonction pour mettre à jour le graphique
+// Fonction pour obtenir les labels des mois traduits
+function getMonthLabels() {
+    const months = chartTranslations.months;
+    return [
+        months.jan, months.feb, months.mar, months.apr,
+        months.may, months.jun, months.jul, months.aug,
+        months.sep, months.oct, months.nov, months.dec
+    ];
+}
+
+// Fonction pour mettre à jour le graphique (TRADUITE)
 function updateChart(monthlyData) {
     if (!window.statsChart) {
         console.warn('⚠️ Graphique non initialisé, tentative d\'initialisation...');
@@ -1137,11 +1244,8 @@ function updateChart(monthlyData) {
     
     console.log('📈 Mise à jour du graphique avec:', monthlyData);
     
-    // Préparer les données pour Chart.js
-    const months = [
-        'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun',
-        'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'
-    ];
+    // Utiliser les labels traduits
+    const monthLabels = getMonthLabels();
     
     // Initialiser les données pour tous les mois
     const emptyData = new Array(12).fill(0);
@@ -1160,19 +1264,27 @@ function updateChart(monthlyData) {
         });
     }
     
-    // Mettre à jour les données du graphique
-    window.statsChart.data.labels = months;
+    // Mettre à jour les données du graphique avec les labels traduits
+    window.statsChart.data.labels = monthLabels;
     window.statsChart.data.datasets[0].data = totalData;
+    window.statsChart.data.datasets[0].label = chartTranslations.total_reports;
     window.statsChart.data.datasets[1].data = emptyData;
+    window.statsChart.data.datasets[1].label = chartTranslations.empty_bins;
     window.statsChart.data.datasets[2].data = fullData;
+    window.statsChart.data.datasets[2].label = chartTranslations.full_bins;
+    
+    // Mettre à jour les options traduites
+    window.statsChart.options.plugins.title.text = chartTranslations.monthly_evolution;
+    window.statsChart.options.scales.y.title.text = chartTranslations.reports_count;
+    window.statsChart.options.scales.x.title.text = chartTranslations.month;
     
     // Redessiner le graphique
     window.statsChart.update('active');
     
-    console.log('✅ Graphique mis à jour');
+    console.log('✅ Graphique mis à jour avec traductions');
 }
 
-// Fonction pour initialiser le graphique (si pas encore fait)
+// Fonction pour initialiser le graphique (TRADUITE)
 function initChart() {
     const ctx = document.getElementById('statsChart');
     if (!ctx) {
@@ -1180,18 +1292,22 @@ function initChart() {
         return;
     }
     console.log('📈 Initialisation du graphique...');
+    
     // Détruire le graphique existant s'il y en a un
     if (window.statsChart && typeof window.statsChart.destroy === 'function') {
         window.statsChart.destroy();
     }
+    
+    // Obtenir les labels traduits
+    const monthLabels = getMonthLabels();
+    
     window.statsChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun',
-                'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'],
+            labels: monthLabels,
             datasets: [
                 {
-                    label: 'Total signalements',
+                    label: chartTranslations.total_reports,
                     data: new Array(12).fill(0),
                     borderColor: 'rgb(59, 130, 246)',
                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -1199,7 +1315,7 @@ function initChart() {
                     fill: true
                 },
                 {
-                    label: 'Poubelles vides',
+                    label: chartTranslations.empty_bins,
                     data: new Array(12).fill(0),
                     borderColor: 'rgb(34, 197, 94)',
                     backgroundColor: 'rgba(34, 197, 94, 0.1)',
@@ -1207,7 +1323,7 @@ function initChart() {
                     fill: false
                 },
                 {
-                    label: 'Poubelles pleines',
+                    label: chartTranslations.full_bins,
                     data: new Array(12).fill(0),
                     borderColor: 'rgb(239, 68, 68)',
                     backgroundColor: 'rgba(239, 68, 68, 0.1)',
@@ -1226,7 +1342,7 @@ function initChart() {
             plugins: {
                 title: {
                     display: true,
-                    text: 'Évolution mensuelle des signalements',
+                    text: chartTranslations.monthly_evolution,
                     font: {
                         size: 16,
                         weight: 'bold'
@@ -1238,7 +1354,7 @@ function initChart() {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            return `${context.dataset.label}: ${context.parsed.y} signalement(s)`;
+                            return `${context.dataset.label}: ${context.parsed.y} ${chartTranslations.tooltip_format}`;
                         }
                     }
                 }
@@ -1251,13 +1367,13 @@ function initChart() {
                     },
                     title: {
                         display: true,
-                        text: 'Nombre de signalements'
+                        text: chartTranslations.reports_count
                     }
                 },
                 x: {
                     title: {
                         display: true,
-                        text: 'Mois'
+                        text: chartTranslations.month
                     }
                 }
             },
@@ -1267,7 +1383,7 @@ function initChart() {
             }
         }
     });
-    console.log('✅ Graphique initialisé');
+    console.log('✅ Graphique initialisé avec traductions');
 }
 
 

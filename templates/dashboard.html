@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="{{ 'en' if current_lang == 'en' else 'fr' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BinSight - Tableau de Bord Interactif</title>
+    <title>{{ translations.dashboard.title }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
     <style>
         .dashboard-card {
             border: none;
@@ -68,12 +69,23 @@
                 <nav class="navbar navbar-expand-lg navbar-dark bg-dark rounded mb-4">
                     <div class="container-fluid">
                         <a class="navbar-brand" href="#">
-                            <i class="fas fa-chart-line"></i> BinSight Dashboard
+                            <i class="fas fa-chart-line"></i> {{ translations.dashboard.title }}
                         </a>
                         <div class="navbar-nav ms-auto">
-                            <a class="nav-link" href="/"><i class="fas fa-home"></i> Accueil</a>
-                            <a class="nav-link" href="/rules"><i class="fas fa-cog"></i> Règles</a>
-                            <a class="nav-link" href="/upload"><i class="fas fa-upload"></i> Upload</a>
+                            <a class="nav-link" href="/{{ 'en' if current_lang == 'en' else '' }}">
+                                <i class="fas fa-home"></i> {{ translations.dashboard.home }}
+                            </a>
+                            <a class="nav-link" href="/{{ 'en/' if current_lang == 'en' else '' }}rules">
+                                <i class="fas fa-cog"></i> {{ translations.dashboard.rules }}
+                            </a>
+                            <a class="nav-link" href="#" onclick="uploadRedirect()">
+                                <i class="fas fa-upload"></i> {{ translations.dashboard.upload }}
+                            </a>
+                            
+                            <!-- Bouton de changement de langue -->
+                            <a class="nav-link" href="{{ '/en/dashboard' if current_lang == 'fr' else '/dashboard' }}">
+                                <i class="fas fa-globe"></i> {{ 'EN' if current_lang == 'fr' else 'FR' }}
+                            </a>
                         </div>
                     </div>
                 </nav>
@@ -84,38 +96,38 @@
         <div class="filter-panel">
             <div class="row">
                 <div class="col-md-3">
-                    <label class="form-label">Période</label>
+                    <label class="form-label">{{ translations.dashboard.period_label }}</label>
                     <select class="form-select custom-select" id="periodFilter">
-                        <option value="7">7 derniers jours</option>
-                        <option value="30" selected>30 derniers jours</option>
-                        <option value="90">90 derniers jours</option>
-                        <option value="365">1 an</option>
+                        <option value="7">{{ translations.dashboard.period_7 }}</option>
+                        <option value="30" selected>{{ translations.dashboard.period_30 }}</option>
+                        <option value="90">{{ translations.dashboard.period_90 }}</option>
+                        <option value="365">{{ translations.dashboard.period_365 }}</option>
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Type de poubelle</label>
+                    <label class="form-label">{{ translations.dashboard.bin_type_label }}</label>
                     <select class="form-select custom-select" id="binTypeFilter">
-                        <option value="all">Tous les types</option>
-                        <option value="general">Générale</option>
-                        <option value="recyclage">Recyclage</option>
-                        <option value="organique">Organique</option>
-                        <option value="verre">Verre</option>
+                        <option value="all">{{ translations.dashboard.bin_type_all }}</option>
+                        <option value="general">{{ translations.dashboard.bin_type_general }}</option>
+                        <option value="recyclage">{{ translations.dashboard.bin_type_recycling }}</option>
+                        <option value="organique">{{ translations.dashboard.bin_type_organic }}</option>
+                        <option value="verre">{{ translations.dashboard.bin_type_glass }}</option>
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Emplacement</label>
+                    <label class="form-label">{{ translations.dashboard.location_label }}</label>
                     <select class="form-select custom-select" id="locationFilter">
-                        <option value="all">Tous les emplacements</option>
+                        <option value="all">{{ translations.dashboard.location_all }}</option>
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Actions</label>
+                    <label class="form-label">{{ translations.dashboard.actions_label }}</label>
                     <div class="btn-group w-100">
                         <button class="btn btn-primary" onclick="updateDashboard()">
-                            <i class="fas fa-sync"></i> Actualiser
+                            <i class="fas fa-sync"></i> {{ translations.dashboard.refresh_btn }}
                         </button>
                         <button class="btn btn-success" onclick="exportData()">
-                            <i class="fas fa-download"></i> Exporter
+                            <i class="fas fa-download"></i> {{ translations.dashboard.export_btn }}
                         </button>
                     </div>
                 </div>
@@ -129,7 +141,7 @@
                     <div class="card-body text-center position-relative">
                         <div class="real-time-indicator"></div>
                         <div class="stat-number" id="totalImages">-</div>
-                        <div class="stat-label">Images Analysées</div>
+                        <div class="stat-label">{{ translations.dashboard.images_analyzed }}</div>
                     </div>
                 </div>
             </div>
@@ -137,7 +149,7 @@
                 <div class="card dashboard-card metric-card">
                     <div class="card-body text-center">
                         <div class="stat-number" id="fullBins">-</div>
-                        <div class="stat-label">Poubelles Pleines</div>
+                        <div class="stat-label">{{ translations.dashboard.full_bins }}</div>
                     </div>
                 </div>
             </div>
@@ -145,7 +157,7 @@
                 <div class="card dashboard-card metric-card">
                     <div class="card-body text-center">
                         <div class="stat-number" id="emptyBins">-</div>
-                        <div class="stat-label">Poubelles Vides</div>
+                        <div class="stat-label">{{ translations.dashboard.empty_bins }}</div>
                     </div>
                 </div>
             </div>
@@ -153,7 +165,7 @@
                 <div class="card dashboard-card metric-card">
                     <div class="card-body text-center">
                         <div class="stat-number" id="accuracy">-</div>
-                        <div class="stat-label">Précision IA</div>
+                        <div class="stat-label">{{ translations.dashboard.ai_accuracy }}</div>
                     </div>
                 </div>
             </div>
@@ -164,7 +176,7 @@
             <div class="col-lg-6">
                 <div class="card dashboard-card">
                     <div class="card-header">
-                        <h5><i class="fas fa-chart-line"></i> Évolution Temporelle</h5>
+                        <h5><i class="fas fa-chart-line"></i> {{ translations.dashboard.temporal_evolution }}</h5>
                     </div>
                     <div class="card-body">
                         <div class="chart-container">
@@ -176,7 +188,7 @@
             <div class="col-lg-6">
                 <div class="card dashboard-card">
                     <div class="card-header">
-                        <h5><i class="fas fa-chart-pie"></i> Répartition des États</h5>
+                        <h5><i class="fas fa-chart-pie"></i> {{ translations.dashboard.status_distribution }}</h5>
                     </div>
                     <div class="card-body">
                         <div class="chart-container">
@@ -191,7 +203,7 @@
             <div class="col-lg-6">
                 <div class="card dashboard-card">
                     <div class="card-header">
-                        <h5><i class="fas fa-map-marker-alt"></i> Analyse par Emplacement</h5>
+                        <h5><i class="fas fa-map-marker-alt"></i> {{ translations.dashboard.location_analysis }}</h5>
                     </div>
                     <div class="card-body">
                         <div class="chart-container">
@@ -203,7 +215,7 @@
             <div class="col-lg-6">
                 <div class="card dashboard-card">
                     <div class="card-header">
-                        <h5><i class="fas fa-robot"></i> Performance de Classification</h5>
+                        <h5><i class="fas fa-robot"></i> {{ translations.dashboard.classification_performance }}</h5>
                     </div>
                     <div class="card-body">
                         <div class="chart-container">
@@ -219,20 +231,20 @@
             <div class="col-12">
                 <div class="card dashboard-card">
                     <div class="card-header">
-                        <h5><i class="fas fa-table"></i> Données Récentes</h5>
+                        <h5><i class="fas fa-table"></i> {{ translations.dashboard.recent_data }}</h5>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
                             <table class="table table-striped" id="recentDataTable">
                                 <thead>
                                     <tr>
-                                        <th>Image</th>
-                                        <th>Date</th>
-                                        <th>État</th>
-                                        <th>Type</th>
-                                        <th>Emplacement</th>
-                                        <th>Confiance IA</th>
-                                        <th>Actions</th>
+                                        <th>{{ translations.dashboard.table_image }}</th>
+                                        <th>{{ translations.dashboard.table_date }}</th>
+                                        <th>{{ translations.dashboard.table_status }}</th>
+                                        <th>{{ translations.dashboard.table_type }}</th>
+                                        <th>{{ translations.dashboard.table_location }}</th>
+                                        <th>{{ translations.dashboard.table_confidence }}</th>
+                                        <th>{{ translations.dashboard.table_actions }}</th>
                                     </tr>
                                 </thead>
                                 <tbody id="recentDataBody">
@@ -250,6 +262,15 @@
     <script>
         let charts = {};
         
+        // Variables pour les traductions
+        const currentLang = '{{ current_lang }}';
+        const dashboardTranslations = {{ translations.dashboard | tojson | safe }};
+        
+        // Fonction pour rediriger vers la page d'upload selon la langue
+        function uploadRedirect() {
+            window.location.href = currentLang === 'en' ? '/en' : '/';
+        }
+
         // Initialiser le dashboard
         document.addEventListener('DOMContentLoaded', function() {
             initCharts();
@@ -268,13 +289,13 @@
                 data: {
                     labels: [],
                     datasets: [{
-                        label: 'Pleines',
+                        label: dashboardTranslations.chart_full,
                         data: [],
                         borderColor: 'rgb(255, 99, 132)',
                         backgroundColor: 'rgba(255, 99, 132, 0.1)',
                         tension: 0.4
                     }, {
-                        label: 'Vides',
+                        label: dashboardTranslations.chart_empty,
                         data: [],
                         borderColor: 'rgb(54, 162, 235)',
                         backgroundColor: 'rgba(54, 162, 235, 0.1)',
@@ -297,7 +318,12 @@
             charts.status = new Chart(statusCtx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Pleines', 'Vides', 'À moitié', 'Incertaines'],
+                    labels: [
+                        dashboardTranslations.chart_full, 
+                        dashboardTranslations.chart_empty, 
+                        dashboardTranslations.chart_half, 
+                        dashboardTranslations.chart_unclear
+                    ],
                     datasets: [{
                         data: [0, 0, 0, 0],
                         backgroundColor: [
@@ -326,7 +352,7 @@
                 data: {
                     labels: [],
                     datasets: [{
-                        label: 'Nombre de poubelles',
+                        label: dashboardTranslations.chart_bins_count,
                         data: [],
                         backgroundColor: 'rgba(54, 162, 235, 0.8)',
                         borderColor: 'rgb(54, 162, 235)',
@@ -349,9 +375,15 @@
             charts.performance = new Chart(performanceCtx, {
                 type: 'radar',
                 data: {
-                    labels: ['Précision', 'Rappel', 'F1-Score', 'Spécificité', 'Sensibilité'],
+                    labels: [
+                        dashboardTranslations.chart_precision, 
+                        dashboardTranslations.chart_recall, 
+                        dashboardTranslations.chart_f1_score, 
+                        dashboardTranslations.chart_specificity, 
+                        dashboardTranslations.chart_sensitivity
+                    ],
                     datasets: [{
-                        label: 'Performance IA',
+                        label: dashboardTranslations.chart_ai_performance,
                         data: [0, 0, 0, 0, 0],
                         borderColor: 'rgb(75, 192, 192)',
                         backgroundColor: 'rgba(75, 192, 192, 0.2)',
@@ -373,6 +405,9 @@
                 }
             });
         }
+        
+        // ... rest of existing functions (updateDashboard, loadLocations, etc.) ...
+        // (keep the existing functions but they will now use the translated chart labels)
         
         function updateDashboard() {
             const period = document.getElementById('periodFilter').value;
@@ -493,7 +528,9 @@
         function getStatusColor(status) {
             const colors = {
                 'full': 'danger',
+                'pleine': 'danger',
                 'empty': 'success',
+                'vide': 'success',
                 'half': 'warning',
                 'unclear': 'secondary'
             };
@@ -501,11 +538,13 @@
         }
         
         function viewImage(imageId) {
-            window.open(`/view/${imageId}`, '_blank');
+            const baseUrl = currentLang === 'en' ? '/en' : '';
+            window.open(`${baseUrl}/view/${imageId}`, '_blank');
         }
         
         function editAnnotation(imageId) {
-            window.location.href = `/annotate/${imageId}`;
+            const baseUrl = currentLang === 'en' ? '/en' : '';
+            window.location.href = `${baseUrl}/annotate/${imageId}`;
         }
         
         function exportData() {
