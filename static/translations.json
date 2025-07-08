@@ -40,7 +40,16 @@
       "status_help": "Si vous ne sélectionnez rien, l'IA analysera automatiquement l'image",
       "comment_label": "Commentaire (optionnel)",
       "comment_placeholder": "Ajoutez des détails supplémentaires...",
-      "submit_btn": "Envoyer le signalement"
+      "submit_btn": "Envoyer le signalement",
+      "camera_btn": "Prendre une photo",
+      "camera_title": "Appareil photo",
+      "camera_instruction": "Positionnez la poubelle dans le cadre et cliquez pour capturer",
+      "camera_capture": "Capturer",
+      "camera_switch": "Changer caméra",
+      "camera_close": "Fermer",
+      "camera_permission_denied": "Accès à la caméra refusé",
+      "camera_not_supported": "Appareil photo non supporté sur cet appareil",
+      "camera_error": "Erreur d'accès à la caméra"
     },
     "map_section": {
       "title": "Cartographie des poubelles",
@@ -256,7 +265,16 @@
       "status_help": "If you don't select anything, AI will automatically analyze the image",
       "comment_label": "Comment (optional)",
       "comment_placeholder": "Add additional details...",
-      "submit_btn": "Send Report"
+      "submit_btn": "Send Report",
+      "camera_btn": "Take a photo",
+      "camera_title": "Camera",
+      "camera_instruction": "Position the bin in the frame and click to capture",
+      "camera_capture": "Capture",
+      "camera_switch": "Switch camera",
+      "camera_close": "Close",
+      "camera_permission_denied": "Camera access denied",
+      "camera_not_supported": "Camera not supported on this device",
+      "camera_error": "Camera access error"
     },
     "map_section": {
       "title": "Bin Map",

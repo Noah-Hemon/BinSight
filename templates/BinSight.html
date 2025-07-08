@@ -53,6 +53,56 @@
             --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
             box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
         }
+        #camera-container {
+        animation: slideDown 0.3s ease-out;
+    }
+    
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    #camera-video {
+        object-fit: cover;
+        transform: scaleX(-1); /* Effet miroir pour caméra frontale */
+    }
+    
+    /* Responsive pour mobile */
+    @media (max-width: 640px) {
+        #camera-video {
+            max-height: 300px;
+        }
+        
+        .camera-controls {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+            .camera-controls button {
+                width: 100%;
+            }
+        }
+
+        /* Animation du bouton capture */
+        #capture-btn:active {
+            transform: scale(0.95);
+            background-color: #059669;
+        }
+
+        /* Indicateur d'enregistrement */
+        .recording-indicator {
+            width: 12px;
+            height: 12px;
+            background-color: #ef4444;
+            border-radius: 50%;
+            animation: pulse 1s infinite;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -126,15 +176,67 @@
             <h2 class="text-3xl font-bold mb-8 text-center">{{ translations.report_section.title }}</h2>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div class="file-upload" id="drop-area">
-                    <i class="fas fa-cloud-upload-alt text-5xl text-green-500 mb-4"></i>
-                    <h3 class="text-xl font-semibold mb-2">{{ translations.report_section.drop_text }}</h3>
-                    <p class="text-gray-500 mb-4">{{ translations.report_section.or }}</p>
-                    <input type="file" id="file-input" accept="image/*" class="hidden">
-                    <label for="file-input" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg cursor-pointer transition">
-                        <i class="fas fa-folder-open mr-2"></i>{{ translations.report_section.browse_files }}
-                    </label>
-                    <p class="text-sm text-gray-500 mt-4">{{ translations.report_section.supported_formats }}</p>
+    <i class="fas fa-cloud-upload-alt text-5xl text-green-500 mb-4"></i>
+    <h3 class="text-xl font-semibold mb-2">{{ translations.report_section.drop_text }}</h3>
+    <p class="text-gray-500 mb-4">{{ translations.report_section.or }}</p>
+    
+    <!-- Boutons d'action -->
+    <div class="flex flex-col sm:flex-row gap-3 justify-center mb-4">
+        <input type="file" id="file-input" accept="image/*" class="hidden">
+        <label for="file-input" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg cursor-pointer transition">
+            <i class="fas fa-folder-open mr-2"></i>{{ translations.report_section.browse_files }}
+        </label>
+        
+        <!-- Nouveau bouton appareil photo -->
+        <button id="camera-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition">
+            <i class="fas fa-camera mr-2"></i>{{ translations.report_section.camera_btn | default("Prendre une photo") }}
+        </button>
+    </div>
+    
+    <p class="text-sm text-gray-500 mt-4">{{ translations.report_section.supported_formats }}</p>
+    
+    <!-- Zone caméra (cachée par défaut) -->
+    <div id="camera-container" class="hidden w-full mt-6">
+        <div class="bg-gray-100 p-4 rounded-lg">
+            <div class="text-center mb-4">
+                <h4 class="text-lg font-semibold text-gray-800">📷 Appareil photo</h4>
+                <p class="text-sm text-gray-600">Positionnez la poubelle dans le cadre et cliquez pour capturer</p>
+            </div>
+            
+            <!-- Vidéo de prévisualisation -->
+            <div class="relative">
+                <video id="camera-video" autoplay playsinline class="w-full max-h-80 rounded-lg border-2 border-gray-300 bg-black"></video>
+                
+                <!-- Overlay de cadre -->
+                <div class="absolute inset-0 pointer-events-none">
+                    <div class="w-full h-full border-4 border-dashed border-green-400 rounded-lg opacity-50"></div>
+                    <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                        <div class="w-8 h-8 border-2 border-green-500 rounded-full bg-green-500 opacity-20"></div>
+                    </div>
                 </div>
+            </div>
+            
+            <!-- Canvas caché pour la capture -->
+            <canvas id="camera-canvas" class="hidden"></canvas>
+            
+            <!-- Contrôles de la caméra -->
+            <div class="flex justify-center gap-3 mt-4">
+                <button id="capture-btn" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition font-medium">
+                    <i class="fas fa-camera mr-2"></i>Capturer
+                </button>
+                <button id="switch-camera-btn" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded-lg transition">
+                    <i class="fas fa-sync-alt mr-2"></i>Changer caméra
+                </button>
+                <button id="close-camera-btn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg transition">
+                    <i class="fas fa-times mr-2"></i>Fermer
+                </button>
+            </div>
+            
+            <!-- Indicateur de statut -->
+            <div id="camera-status" class="text-center mt-3 text-sm text-gray-600"></div>
+        </div>
+    </div>
+</div>
                 <div>
                     <h3 class="text-xl font-semibold mb-4">{{ translations.report_section.details_title }}</h3>
                     <div class="space-y-4">
@@ -1684,6 +1786,250 @@ function showReportsError(message) {
         noReportsDiv.style.display = 'none';
     }
 }
+
+
+// Variables globales pour la caméra
+let cameraStream = null;
+let currentCameraIndex = 0;
+let availableCameras = [];
+
+// Initialisation de la caméra
+async function initCamera() {
+    try {
+        // Obtenir la liste des caméras disponibles
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        availableCameras = devices.filter(device => device.kind === 'videoinput');
+        
+        console.log(`📷 ${availableCameras.length} caméra(s) détectée(s)`);
+        
+        if (availableCameras.length === 0) {
+            throw new Error('Aucune caméra détectée');
+        }
+        
+        // Démarrer avec la caméra arrière si disponible (mobile)
+        const preferredCamera = availableCameras.find(camera => 
+            camera.label.toLowerCase().includes('back') || 
+            camera.label.toLowerCase().includes('rear') ||
+            camera.label.toLowerCase().includes('environment')
+        );
+        
+        if (preferredCamera) {
+            currentCameraIndex = availableCameras.indexOf(preferredCamera);
+        }
+        
+        await startCamera();
+        
+    } catch (error) {
+        console.error('❌ Erreur initialisation caméra:', error);
+        handleCameraError(error);
+    }
+}
+
+// Démarrer la caméra
+async function startCamera() {
+    try {
+        // Arrêter le stream précédent s'il existe
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+        }
+        
+        const video = document.getElementById('camera-video');
+        const statusDiv = document.getElementById('camera-status');
+        
+        statusDiv.textContent = 'Démarrage de la caméra...';
+        
+        // Configuration préférée pour mobile
+        const constraints = {
+            video: {
+                deviceId: availableCameras[currentCameraIndex]?.deviceId,
+                width: { ideal: 1920, max: 1920 },
+                height: { ideal: 1080, max: 1080 },
+                facingMode: availableCameras[currentCameraIndex]?.label.toLowerCase().includes('front') ? 'user' : 'environment'
+            },
+            audio: false
+        };
+        
+        console.log('📷 Demande d\'accès caméra avec constraints:', constraints);
+        
+        cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = cameraStream;
+        
+        video.onloadedmetadata = () => {
+            video.play();
+            statusDiv.textContent = `Caméra active: ${availableCameras[currentCameraIndex]?.label || 'Caméra par défaut'}`;
+        };
+        
+        console.log('✅ Caméra démarrée avec succès');
+        
+    } catch (error) {
+        console.error('❌ Erreur démarrage caméra:', error);
+        handleCameraError(error);
+    }
+}
+
+// Changer de caméra
+async function switchCamera() {
+    if (availableCameras.length <= 1) {
+        showErrorMessage('Une seule caméra disponible');
+        return;
+    }
+    
+    currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
+    console.log(`🔄 Changement vers caméra ${currentCameraIndex}: ${availableCameras[currentCameraIndex].label}`);
+    
+    await startCamera();
+}
+
+// Capturer une photo
+function capturePhoto() {
+    const video = document.getElementById('camera-video');
+    const canvas = document.getElementById('camera-canvas');
+    const context = canvas.getContext('2d');
+    
+    if (!video.videoWidth || !video.videoHeight) {
+        showErrorMessage('La caméra n\'est pas prête');
+        return;
+    }
+    
+    // Ajuster la taille du canvas
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Dessiner l'image sur le canvas
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Convertir en blob
+    canvas.toBlob((blob) => {
+        if (blob) {
+            // Créer un fichier simulé
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const file = new File([blob], `camera-capture-${timestamp}.jpg`, {
+                type: 'image/jpeg',
+                lastModified: Date.now()
+            });
+            
+            console.log('📸 Photo capturée:', {
+                name: file.name,
+                size: file.size,
+                type: file.type
+            });
+            
+            // Fermer la caméra
+            closeCamera();
+            
+            // Traiter comme un fichier uploadé
+            handleFiles([file]);
+            
+            showSuccessMessage('📸 Photo capturée avec succès !');
+            
+        } else {
+            showErrorMessage('Erreur lors de la capture de la photo');
+        }
+    }, 'image/jpeg', 0.9);
+}
+
+// Fermer la caméra
+function closeCamera() {
+    const cameraContainer = document.getElementById('camera-container');
+    const statusDiv = document.getElementById('camera-status');
+    
+    // Arrêter le stream
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => {
+            track.stop();
+            console.log('🔴 Track caméra arrêté:', track.kind);
+        });
+        cameraStream = null;
+    }
+    
+    // Masquer l'interface caméra
+    cameraContainer.classList.add('hidden');
+    statusDiv.textContent = '';
+    
+    console.log('📷 Caméra fermée');
+}
+
+// Gestion des erreurs caméra
+function handleCameraError(error) {
+    const statusDiv = document.getElementById('camera-status');
+    let message = 'Erreur d\'accès à la caméra';
+    
+    if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        message = currentLang === 'fr' ? 'Accès à la caméra refusé. Veuillez autoriser l\'accès dans les paramètres.' : 'Camera access denied. Please allow access in settings.';
+    } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        message = currentLang === 'fr' ? 'Aucune caméra trouvée sur cet appareil.' : 'No camera found on this device.';
+    } else if (error.name === 'NotSupportedError') {
+        message = currentLang === 'fr' ? 'Appareil photo non supporté sur cet appareil.' : 'Camera not supported on this device.';
+    } else if (error.name === 'NotReadableError') {
+        message = currentLang === 'fr' ? 'Caméra déjà utilisée par une autre application.' : 'Camera already in use by another application.';
+    }
+    
+    statusDiv.textContent = message;
+    statusDiv.className = 'text-center mt-3 text-sm text-red-600';
+    
+    showErrorMessage(message);
+    
+    console.error('❌ Erreur caméra détaillée:', {
+        name: error.name,
+        message: error.message,
+        constraint: error.constraint
+    });
+}
+
+// Vérifier la disponibilité de la caméra
+function isCameraSupported() {
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+}
+
+// Event listeners pour les boutons caméra
+document.addEventListener('DOMContentLoaded', () => {
+    // ... existing DOMContentLoaded code ...
+    
+    const cameraBtn = document.getElementById('camera-btn');
+    const captureBtn = document.getElementById('capture-btn');
+    const switchCameraBtn = document.getElementById('switch-camera-btn');
+    const closeCameraBtn = document.getElementById('close-camera-btn');
+    const cameraContainer = document.getElementById('camera-container');
+    
+    // Vérifier le support de la caméra
+    if (!isCameraSupported()) {
+        cameraBtn.style.display = 'none';
+        console.log('📷 Caméra non supportée sur cet appareil');
+    }
+    
+    // Bouton ouvrir caméra
+    if (cameraBtn) {
+        cameraBtn.addEventListener('click', async function() {
+            cameraContainer.classList.remove('hidden');
+            await initCamera();
+        });
+    }
+    
+    // Bouton capturer
+    if (captureBtn) {
+        captureBtn.addEventListener('click', capturePhoto);
+    }
+    
+    // Bouton changer caméra
+    if (switchCameraBtn) {
+        switchCameraBtn.addEventListener('click', switchCamera);
+    }
+    
+    // Bouton fermer caméra
+    if (closeCameraBtn) {
+        closeCameraBtn.addEventListener('click', closeCamera);
+    }
+    
+    // Fermer caméra lors de la navigation
+    window.addEventListener('beforeunload', closeCamera);
+    
+    // Gestion de la visibilité de la page (mobile)
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden && cameraStream) {
+            closeCamera();
+        }
+    });
+});
 
 // Fonction pour voir les détails d'une image
 function viewImageDetails(imageId) {
