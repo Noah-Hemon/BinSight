@@ -37,7 +37,8 @@
             box-shadow: 0 8px 32px #0005, 0 0 0 4px #0ea5e9cc;
             border: 2px solid #fff3;
             padding: 2.5rem 2.5rem 2rem 2.5rem;
-            max-width: 600px;
+            max-width: 900px;
+            width: 90vw;
             margin: 0 auto;
             text-align: center;
             color: #fff;
@@ -257,53 +258,36 @@
                 Suivez l'état de vos bacs, optimisez la collecte, et contribuez à un monde plus propre.<br>
                 <span style="font-weight:600;color:#f59e42;">Parce que chaque déchet compte.</span>
             </p>
-        </div>
-        <div class="scroll-down" onclick="document.getElementById('immersive-section').scrollIntoView({behavior:'smooth'});">
-            <i class="fas fa-angle-double-down"></i>
+            <div class="avatars-bar" style="position:static; display:flex; justify-content:center; gap:2.2rem; margin-top:2.5rem;">
+                <div class="avatar-container">
+                    <img src="/static/troll/kevin.jpg" alt="Kevin" class="avatar-img" tabindex="0">
+                    <div class="profile-name">Kevin Jabiol</div>
+                    <div class="profile-title">Back-End & DB</div>
+                </div>
+                <div class="avatar-container">
+                    <img src="/static/troll/Noah.jpg" alt="Poubello" class="avatar-img" tabindex="0">
+                    <div class="profile-name">Noah Hemon</div>
+                    <div class="profile-title">Front-End & UI/UX</div>
+                </div>
+                <div class="avatar-container">
+                    <img src="/static/troll/po.png" alt="Antoine" class="avatar-img" tabindex="0">
+                    <div class="profile-name">Antoine Le Nogues</div>
+                    <div class="profile-title">Product Owner</div>
+                </div>
+                <div class="avatar-container">
+                    <img src="/static/troll/nassim.jpeg" alt="Nassim" class="avatar-img" tabindex="0">
+                    <div class="profile-name">Nassim Aïnine</div>
+                    <div class="profile-title">Data Engineer</div>
+                </div>
+                <div class="avatar-container">
+                    <img src="/static/troll/antoineit.jpeg" alt="Antoine IT" class="avatar-img" tabindex="0">
+                    <div class="profile-name">Antoine IT</div>
+                    <div class="profile-title">Scrum Master</div>
+                </div>
+            </div>
         </div>
     </section>
-    <!-- Section 2 : About immersive -->
-    <section id="immersive-section" class="immersive-section">
-        <div class="bg-video">
-            <iframe width="100%" height="100%" src="https://www.youtube.com/embed/44pt8w67S8I?autoplay=1&mute=0&loop=1&playlist=44pt8w67S8I&controls=0&modestbranding=1&rel=0&showinfo=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen style="position:absolute;top:0;left:0;width:100vw;height:100vh;pointer-events:none;"></iframe>
-        </div>
-        <div class="overlay"></div>
-        <div class="slogan drop-shadow-lg">Because we provide insights for your bins,<br>stay on our sight or you will go to bin</div>
-        <div class="avatars-bar">
-            <div class="avatar-container">
-                <img src="/static/troll/kevin.jpg" alt="Kevin" class="avatar-img" tabindex="0">
-                <div class="profile-name">Kevin</div>
-                <div class="profile-title">CEO and Scroll Master</div>
-            </div>
-            <div class="avatar-container">
-                <img src="/static/troll/poubello.png" alt="Poubello" class="avatar-img" tabindex="0">
-                <div class="profile-name">Poubello</div>
-                <div class="profile-title">Mascotte</div>
-            </div>
-            <div class="avatar-container">
-                <img src="/static/troll/po.png" alt="Poubello" class="avatar-img" tabindex="0">
-                <div class="profile-name">Antoine</div>
-                <div class="profile-title">Product Owner</div>
-            </div>
-            <div class="avatar-container">
-                <img src="/static/troll/nassim.jpeg" alt="Nassim" class="avatar-img" tabindex="0">
-                <div class="profile-name">Nassim</div>
-                <div class="profile-title">Bonbons Master</div>
-            </div>
-            <div class="avatar-container">
-                <img src="/static/troll/antoineit.jpeg" alt="Antoine IT" class="avatar-img" tabindex="0">
-                <div class="profile-name">Antoine IT</div>
-                <div class="profile-title">Scrum Master</div>
-            </div>
-        </div>
-        <a href="/" class="back-btn" title="Back to Home"><i class="fas fa-home"></i></a>
-    </section>
-    <audio id="bg-audio" src="https://cdn.pixabay.com/audio/2022/07/26/audio_124bfae5b2.mp3" autoplay loop></audio>
     <script>
-        // Audio always loop and play
-        const audio = document.getElementById('bg-audio');
-        audio.volume = 0.25;
-        audio.play().catch(()=>{});
         // Slogan animation trigger
         window.addEventListener('DOMContentLoaded', ()=>{
             document.querySelectorAll('.slogan').forEach(el=>el.style.opacity=1);
