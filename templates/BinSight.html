@@ -70,7 +70,14 @@
     
     #camera-video {
         object-fit: cover;
-        transform: scaleX(-1); /* Effet miroir pour caméra frontale */
+    }
+
+    #camera-video.front-camera {
+        transform: scaleX(-1); /* Effet miroir seulement pour caméra frontale */
+    }
+    
+    #camera-video.back-camera {
+        transform: scaleX(1); /* Pas d'effet miroir pour caméra arrière */
     }
     
     /* Responsive pour mobile */
