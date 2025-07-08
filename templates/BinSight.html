@@ -2801,6 +2801,9 @@ function loadMapData() {
 // Variable globale pour stocker les marqueurs
 let mapMarkers = [];
 
+// ➜ Zones d’alerte
+let hotspotLayers = [];
+
 // Fonction pour mettre à jour les marqueurs sur la carte
 function updateMapMarkers(poubelles) {
     if (!map) {
@@ -2833,9 +2836,75 @@ function updateMapMarkers(poubelles) {
         const group = new L.featureGroup(mapMarkers);
         map.fitBounds(group.getBounds().pad(0.1));
     }
+
+    // ➜ Mettre en évidence les zones où plusieurs poubelles pleines sont proches
+    highlightHotspots(poubelles);
+
     
     console.log(`✅ ${mapMarkers.length} marqueur(s) ajouté(s) à la carte`);
 }
+
+function highlightHotspots(poubelles, radius = 50000, minBins = 3) {
+
+    // 0. Nettoyer les anciens cercles
+    hotspotLayers.forEach(l => map.removeLayer(l));
+    hotspotLayers = [];
+
+    console.log('Données reçues dans highlightHotspots:', poubelles);
+
+    // 1. Normaliser les poubelles « pleines »
+    const fullBins = poubelles
+        .filter(p => (p.status || p.etat || p.level)
+                     ?.toString().toLowerCase().includes('pleine'))       // ← adapte si "FULL"
+        .map(p => ({
+            id :  p.id || p._id || Math.random(),
+            lat: Number(p.lat  ?? p.latitude  ?? p.latitud  ?? p.y),
+            lng: Number(p.lng  ?? p.lon       ?? p.longitude ?? p.x)
+        }))
+        .filter(p => !Number.isNaN(p.lat) && !Number.isNaN(p.lng));       // on écarte tout NaN
+
+    console.log('♻️ fullBins:', fullBins);
+
+    console.log('♻️  après normalisation →', fullBins.slice(0, 3));
+
+    if (fullBins.length === 0) {
+        console.warn('Aucune coordonnée exploitable ➜ pas de hot-spot');
+        return;
+    }
+
+    // 2. Algorithme de regroupement identique
+    const done = new Set();
+
+    fullBins.forEach(bin => {
+        if (done.has(bin.id)) return;
+
+        const neighbours = fullBins.filter(o =>
+            L.latLng(bin.lat, bin.lng).distanceTo([o.lat, o.lng]) <= radius
+        );
+
+        if (neighbours.length >= minBins) {
+            neighbours.forEach(o => done.add(o.id));
+
+            const center = neighbours.reduce(
+                (acc, b) => ({lat: acc.lat + b.lat, lng: acc.lng + b.lng}),
+                {lat: 0, lng: 0}
+            );
+            const centerLat = center.lat / neighbours.length;
+            const centerLng = center.lng / neighbours.length;
+
+            const circle = L.circle([centerLat, centerLng], radius, {     // radius en 2ᵉ arg
+                color: '#ef4444',
+                weight: 2,
+                fillColor: '#ef4444',
+                fillOpacity: 0.15
+            }).addTo(map);
+
+            hotspotLayers.push(circle);
+            console.log(`✅ Hot-spot : ${neighbours.length} poubelles, centre (${centerLat.toFixed(5)}, ${centerLng.toFixed(5)})`);
+        }
+    });
+}
+
 
 // Fonction pour créer un marqueur sur la carte
 function createMapMarker(poubelle, index) {
