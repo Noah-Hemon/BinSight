@@ -367,6 +367,18 @@
                         <i class="fas fa-robot mr-2"></i>{{ translations.admin_tools.retrain_btn }}
                     </button>
                 </div>
+
+                <!-- Tool 7: Delete All Images -->
+                <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col">
+                    <div class="flex-grow">
+                        <h3 class="text-xl font-bold text-gray-800">Suppression totale des images</h3>
+                        <p class="text-gray-600 mt-1">Supprime toutes les images du site (base de données et fichiers). Action irréversible !</p>
+                    </div>
+                    <div id="delete-all-images-status" class="mt-4 text-sm"></div>
+                    <button id="delete-all-images-btn" class="bg-red-700 hover:bg-red-800 text-white px-6 py-3 rounded-lg transition mt-4 w-full">
+                        <i class="fas fa-trash-alt mr-2"></i>Supprimer toutes les images
+                    </button>
+                </div>
             </div>
         </section>
         {% endif %}
@@ -2202,7 +2214,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- FIN: Logique de vérification ---
 
     // --- NOUVEAU: Logique pour la suppression de toutes les images ---
-    const deleteAllBtn = document.getElementById('delete-all-btn');
+    const deleteAllBtn = document.getElementById('delete-all-images-btn');
     const deleteAllReportContainer = document.getElementById('delete-all-report-container');
 
     if (deleteAllBtn) {
@@ -2215,7 +2227,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Suppression en cours...`;
             deleteAllReportContainer.innerHTML = '';
 
-            fetch('/api/delete_all_images', { method: 'DELETE' })
+            fetch('/api/admin/delete_all_images', { method: 'POST' })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -2367,6 +2379,43 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     // --- FIN: Réentraînement IA ---
+
+    // --- NOUVEAU: Logique pour la suppression de toutes les images ---
+    const deleteAllImagesBtn = document.getElementById('delete-all-images-btn');
+    const deleteAllImagesStatus = document.getElementById('delete-all-images-status');
+
+    if (deleteAllImagesBtn) {
+        deleteAllImagesBtn.addEventListener('click', function() {
+            if (!confirm("Êtes-vous sûr de vouloir supprimer toutes les images et leurs données de la base de données et du serveur ? Cette action est irréversible.")) {
+                return;
+            }
+
+            this.disabled = true;
+            this.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Suppression en cours...`;
+            deleteAllImagesStatus.innerHTML = '';
+
+            fetch('/api/admin/delete_all_images', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showSuccessMessage('Toutes les images et leurs données ont été supprimées avec succès !');
+                        deleteAllImagesStatus.innerHTML = '<p class="text-green-700 font-medium text-center">✅ Toutes les images et leurs données ont été supprimées avec succès !</p>';
+                    } else {
+                        throw new Error(data.error || 'Une erreur inconnue est survenue.');
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Erreur lors de la suppression:', error);
+                    showErrorMessage(`Erreur lors de la suppression: ${error.message}`);
+                    deleteAllImagesStatus.innerHTML = `<div class="text-red-500">Échec de la suppression.</div>`;
+                })
+                .finally(() => {
+                    this.disabled = false;
+                    this.innerHTML = `<i class="fas fa-trash-alt mr-2"></i>Supprimer toutes les images`;
+                });
+        });
+    }
+    // --- FIN: Logique pour la suppression de toutes les images ---
 });
 
 // Fonction pour charger les données de la carte depuis l'API

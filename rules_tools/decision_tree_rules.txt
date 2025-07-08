@@ -1,0 +1,22 @@
+|--- height <= 425.50
+|   |--- color_diversity <= 0.80
+|   |   |--- avg_green <= 162.38
+|   |   |   |--- class: pleine
+|   |   |--- avg_green >  162.38
+|   |   |   |--- class: vide
+|   |--- color_diversity >  0.80
+|   |   |--- saturation <= 37.06
+|   |   |   |--- class: vide
+|   |   |--- saturation >  37.06
+|   |   |   |--- class: pleine
+|--- height >  425.50
+|   |--- avg_blue <= 76.50
+|   |   |--- color_diversity <= 0.65
+|   |   |   |--- class: vide
+|   |   |--- color_diversity >  0.65
+|   |   |   |--- class: pleine
+|   |--- avg_blue >  76.50
+|   |   |--- edge_density <= 0.20
+|   |   |   |--- class: vide
+|   |   |--- edge_density >  0.20
+|   |   |   |--- class: pleine

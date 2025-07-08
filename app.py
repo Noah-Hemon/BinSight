@@ -18,6 +18,12 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, confusion_matrix
 import joblib
 from sklearn.model_selection import cross_val_score
+from skimage.color import rgb2hsv
+from scipy.ndimage import binary_dilation
+import sys
+import glob
+import pickle
+MODEL_PATH = "ia_model.pkl"
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'binsight-secret-key-2023'
@@ -311,6 +317,9 @@ class FeatureExtractor:
             # Luminosité
             brightness = np.mean(np_image)
             
+            # Scan pixels poubelle
+            bin_pixel_features = self.scan_bin_pixels(np_image)
+            
             # Nouvelles caractéristiques avancées
             advanced_features = self.extract_advanced_features(image_path, np_image)
             
@@ -329,7 +338,10 @@ class FeatureExtractor:
                 'shape_features': advanced_features['shape'],
                 'color_diversity': float(advanced_features['color_diversity']),
                 'saturation': float(advanced_features['saturation']),
-                'hue_dominance': float(advanced_features['hue_dominance'])
+                'hue_dominance': float(advanced_features['hue_dominance']),
+                'bin_pixel_ratio': bin_pixel_features['bin_pixel_ratio'],
+                'bin_surrounding_diversity': bin_pixel_features['bin_surrounding_diversity'],
+                'sacs_autour_ratio': bin_pixel_features['sacs_autour_ratio']
             }
             
             print(f"✓ Caractéristiques extraites: {len(features)} features")
@@ -339,6 +351,48 @@ class FeatureExtractor:
             print(f"✗ Erreur lors de l'extraction: {e}")
             traceback.print_exc()
             return None
+    
+    def scan_bin_pixels(self, np_image):
+        """Scanne l'image pour détecter la proportion de pixels poubelle, la diversité autour et la présence de sacs/déchets autour."""
+        import numpy as np
+        from skimage.color import rgb2hsv
+        from scipy.ndimage import binary_dilation
+        h, w, _ = np_image.shape
+        total_pixels = h * w
+        hsv = rgb2hsv(np_image / 255.0)
+        # Plages poubelle
+        vert_mask = (
+            (hsv[..., 0] > 0.22) & (hsv[..., 0] < 0.45) &
+            (hsv[..., 1] > 0.25) & (hsv[..., 2] < 0.4)
+        )
+        noir_mask = (hsv[..., 2] < 0.18) & (hsv[..., 1] < 0.4)
+        marron_mask = (
+            (hsv[..., 0] > 0.055) & (hsv[..., 0] < 0.13) &
+            (hsv[..., 1] > 0.3) & (hsv[..., 2] < 0.5)
+        )
+        gris_mask = (hsv[..., 1] < 0.18) & (hsv[..., 2] > 0.18) & (hsv[..., 2] < 0.7)
+        bin_mask = vert_mask | noir_mask | marron_mask | gris_mask
+        bin_pixel_count = np.sum(bin_mask)
+        bin_pixel_ratio = bin_pixel_count / total_pixels
+        # Diversité autour (ancienne logique)
+        dilated = binary_dilation(bin_mask, iterations=2).astype(bool)
+        bin_mask_bool = bin_mask.astype(bool)
+        surrounding_mask = dilated & (~bin_mask_bool)
+        quant = (np_image[surrounding_mask] // 32).astype(np.uint8)
+        if quant.shape[0] > 0:
+            unique_colors = np.unique(quant, axis=0)
+            diversity = unique_colors.shape[0] / max(1, quant.shape[0])
+        else:
+            diversity = 0.0
+        # Sacs/déchets autour : pixels très clairs ou très foncés, mais pas poubelle
+        sacs_mask = ((hsv[..., 2] > 0.8) | (hsv[..., 2] < 0.18)) & (~bin_mask)
+        sacs_autour = np.sum(sacs_mask & dilated)
+        sacs_autour_ratio = sacs_autour / np.sum(dilated) if np.sum(dilated) > 0 else 0.0
+        return {
+            'bin_pixel_ratio': float(bin_pixel_ratio),
+            'bin_surrounding_diversity': float(diversity),
+            'sacs_autour_ratio': float(sacs_autour_ratio)
+        }
     
     def extract_advanced_features(self, image_path, np_image):
         """Extraire des caractéristiques avancées - VERSION AMÉLIORÉE"""
@@ -566,6 +620,24 @@ class SimpleClassifier:
         self.ia_label_map = {0: 'dirty', 1: 'clean'}
         self.mode = 'rules'  # 'rules' or 'ia'
         print("✓ Classificateur simple initialisé")
+        self.load_ia_model()
+
+    def save_ia_model(self):
+        if self.ia_model is not None:
+            with open(MODEL_PATH, "wb") as f:
+                pickle.dump(self.ia_model, f)
+            print("✅ Modèle IA sauvegardé avec pickle.")
+
+    def load_ia_model(self):
+        if os.path.exists(MODEL_PATH):
+            with open(MODEL_PATH, "rb") as f:
+                self.ia_model = pickle.load(f)
+            self.ia_trained = True
+            print("✅ Modèle IA chargé depuis pickle.")
+        else:
+            self.ia_model = None
+            self.ia_trained = False
+            print("❌ Aucun modèle IA pickle trouvé.")
 
     def set_mode(self, mode):
         """Changer le mode de classification ('rules' ou 'ia')"""
@@ -581,35 +653,50 @@ class SimpleClassifier:
         else:
             return self.classify_rules(features)
 
-    def classify_rules(self, features):
-        """Ancienne méthode de classification par règles"""
-        # Copie du code original de classify ici
+    def classify_rules(self, features, label=None):
+        """Classification basée sur la logique de l'arbre de décision (hardcodée)"""
         try:
-            if not self.rules:
-                self.rules = self.load_classification_rules()
-            for rule in self.rules:
-                if self.evaluate_rule(features, rule['condition']):
-                    confidence = self.calculate_confidence(features, rule['condition'])
-                    action = rule['action']
-                    if action == 'full':
-                        return 'pleine', confidence
-                    elif action == 'empty':
-                        return 'vide', confidence
+            h = features.get('height', 0)
+            cd = features.get('color_diversity', 0)
+            vg = features.get('avg_green', 0)
+            vb = features.get('avg_blue', 0)
+            sat = features.get('saturation', 0)
+            ed = features.get('edge_density', 0)
+
+            # Nouvelle logique issue du decision_tree_rules.txt
+            if h <= 425.50:
+                if cd <= 0.80:
+                    if vg <= 162.38:
+                        auto_class = 'pleine'
                     else:
-                        return action, confidence
-            file_size = features.get('file_size', 0)
-            width = features.get('width', 0)
-            height = features.get('height', 0)
-            brightness = features.get('brightness', 128)
-            unique_hash = abs(int(file_size + width * height + brightness * 100))
-            if unique_hash % 2 == 0:
-                return 'vide', 0.75
+                        auto_class = 'vide'
+                else:
+                    if sat <= 37.06:
+                        auto_class = 'vide'
+                    else:
+                        auto_class = 'pleine'
             else:
-                return 'pleine', 0.75
+                if vb <= 76.50:
+                    if cd <= 0.65:
+                        auto_class = 'vide'
+                    else:
+                        auto_class = 'pleine'
+                else:
+                    if ed <= 0.20:
+                        auto_class = 'vide'
+                    else:
+                        auto_class = 'pleine'
+
+            conf = 0.9  # Confiance par défaut (à ajuster si besoin)
+            if label is not None:
+                is_correct = int(auto_class == label)
+                return auto_class, conf, is_correct
+            return auto_class, conf
         except Exception as e:
-            print(f"⚠️ Erreur classification: {e}")
-            import random
-            return ('vide', 0.6) if random.randint(0, 1) == 0 else ('pleine', 0.6)
+            print(f"Erreur dans classify_rules (arbre hardcodé): {e}")
+            if label is not None:
+                return 'vide', 0.5, 0
+            return 'vide', 0.5
 
     def classify_ia(self, features):
         """Classifier une image avec un modèle IA entraîné sur les données labellisées"""
@@ -633,8 +720,8 @@ class SimpleClassifier:
             return label, proba
 
     def train_ia_model(self):
-        """Entraîner le modèle IA sur les images labellisées"""
-        print("Entraînement du modèle IA...")
+        """Entraîner le modèle IA sur les images labellisées avec TOUTES les features disponibles"""
+        print("🤖 Entraînement du modèle IA avec features complètes...")
         X, y = [], []
         for label, folder in [(0, 'dirty'), (1, 'clean')]:
             dir_path = os.path.join('Data', 'train', 'with_label', folder)
@@ -645,33 +732,42 @@ class SimpleClassifier:
                 try:
                     feats = feature_extractor.extract(fpath)
                     if feats:
-                        X.append(self.features_to_vector(feats))
+                        feature_vector = self.features_to_vector(feats)
+                        X.append(feature_vector)
                         y.append(label)
+                        print(f"✅ Feature vector créé: {len(feature_vector)} dimensions pour {fname}")
                 except Exception as e:
-                    print(f"Erreur extraction IA: {e}")
+                    print(f"❌ Erreur extraction IA pour {fname}: {e}")
         if len(X) < 5:
-            print("Pas assez de données pour entraîner l'IA")
+            print("❌ Pas assez de données pour entraîner l'IA")
             self.ia_model = None
             self.ia_trained = False
             return
+        from sklearn.ensemble import RandomForestClassifier
+        from sklearn.model_selection import train_test_split
+        from sklearn.metrics import accuracy_score, confusion_matrix
+        from sklearn.model_selection import cross_val_score
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        model = RandomForestClassifier(n_estimators=50, random_state=42)
+        model = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=10)
         model.fit(X_train, y_train)
         acc = accuracy_score(y_test, model.predict(X_test))
-        print(f"Score IA (test): {acc:.2f}")
+        print(f"🤖 Score IA (test): {acc:.2f}")
         y_pred = model.predict(X_test)
-        print("Matrice de confusion :")
+        print("🤖 Matrice de confusion :")
         print(confusion_matrix(y_test, y_pred))
         self.ia_model = model
         self.ia_trained = True
-        # Optionally save model: joblib.dump(model, 'ia_model.joblib')
         scores = cross_val_score(model, X, y, cv=5)
-        print(f"Cross-validation (5-fold) accuracy: {scores.mean():.2f} (+/- {scores.std():.2f})")
+        print(f"🤖 Cross-validation (5-fold) accuracy: {scores.mean():.2f} (+/- {scores.std():.2f})")
+        self.save_ia_model()
+        print("✅ Modèle IA entraîné et sauvegardé avec succès!")
 
     def features_to_vector(self, features):
-        """Convertir le dict de features en vecteur pour le modèle IA"""
-        # Sélectionner les features numériques pertinents
-        vec = [
+        """Convertir le dict de features en vecteur pour le modèle IA - utilise TOUTES les features disponibles"""
+        vec = []
+        
+        # Features de base de l'image
+        vec.extend([
             features.get('file_size', 0),
             features.get('width', 0),
             features.get('height', 0),
@@ -681,11 +777,63 @@ class SimpleClassifier:
             features.get('brightness', 0),
             features.get('contrast_level', 0),
             features.get('edge_density', 0),
+        ])
+        
+        # Features avancées de couleur et texture
+        vec.extend([
             features.get('color_diversity', 0),
             features.get('saturation', 0),
-            features.get('hue_dominance', 0)
-        ]
-        # Optionally add more from histogram/texture/shape
+            features.get('hue_dominance', 0),
+        ])
+        
+        # Features de détection de poubelle
+        vec.extend([
+            features.get('bin_pixel_ratio', 0),
+            features.get('sacs_autour_ratio', 0),
+            features.get('bin_surrounding_diversity', 0),
+        ])
+        
+        # Features d'histogramme (si disponibles)
+        histogram_features = features.get('histogram_features', {})
+        if isinstance(histogram_features, dict):
+            vec.extend([
+                histogram_features.get('mean', 0),
+                histogram_features.get('std', 0),
+                histogram_features.get('skewness', 0),
+                histogram_features.get('kurtosis', 0),
+            ])
+        else:
+            vec.extend([0, 0, 0, 0])  # Valeurs par défaut
+        
+        # Features de texture (si disponibles)
+        texture_features = features.get('texture_features', {})
+        if isinstance(texture_features, dict):
+            vec.extend([
+                texture_features.get('entropy', 0),
+                texture_features.get('energy', 0),
+                texture_features.get('contrast', 0),
+                texture_features.get('homogeneity', 0),
+                texture_features.get('correlation', 0),
+            ])
+        else:
+            vec.extend([0, 0, 0, 0, 0])  # Valeurs par défaut
+        
+        # Features de forme (si disponibles)
+        shape_features = features.get('shape_features', {})
+        if isinstance(shape_features, dict):
+            vec.extend([
+                shape_features.get('area', 0),
+                shape_features.get('perimeter', 0),
+                shape_features.get('circularity', 0),
+                shape_features.get('aspect_ratio', 0),
+            ])
+        else:
+            vec.extend([0, 0, 0, 0])  # Valeurs par défaut
+        
+        # Normaliser les valeurs pour éviter les problèmes d'échelle
+        vec = [float(v) if v is not None else 0.0 for v in vec]
+        
+        print(f"🤖 Vecteur IA créé avec {len(vec)} features")
         return vec
 
     def load_classification_rules(self):
@@ -791,7 +939,6 @@ class SimpleClassifier:
 # Initialiser les composants
 feature_extractor = FeatureExtractor()
 classifier = SimpleClassifier()
-classifier.train_ia_model()  # Entraîne l'IA au démarrage
 
 # Middleware pour logger les requêtes
 @app.before_request
@@ -838,6 +985,76 @@ def test():
         'message': 'Serveur Flask fonctionne',
         'timestamp': datetime.now().isoformat()
     })
+
+@app.route('/test-classifiers')
+def test_classifiers():
+    """Page de test pour les classificateurs"""
+    return render_template('test_classifiers.html', 
+                         translations=translations.get('fr', {}), 
+                         current_lang='fr')
+
+@app.route('/api/test-classifiers', methods=['POST'])
+def api_test_classifiers():
+    """API pour tester les classificateurs avec une image"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': 'Aucun fichier fourni'})
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': 'Aucun fichier sélectionné'})
+        
+        if not allowed_file(file.filename):
+            return jsonify({'success': False, 'message': 'Format de fichier non supporté'})
+        
+        # Sauvegarder temporairement
+        filename = secure_filename(file.filename)
+        temp_path = os.path.join(app.config['UPLOAD_FOLDER'], f'test_{filename}')
+        file.save(temp_path)
+        
+        # Extraire les caractéristiques
+        features = feature_extractor.extract(temp_path)
+        
+        if not features:
+            return jsonify({'success': False, 'message': 'Échec extraction des caractéristiques'})
+        
+        results = {}
+        
+        # Test Rules-based classification
+        classifier.set_mode('rules')
+        rules_result = classifier.classify(features)
+        results['rules'] = {
+            'classification': rules_result[0],
+            'confidence': round(rules_result[1], 3)
+        }
+        
+        # Test AI classification
+        classifier.set_mode('ia')
+        ai_result = classifier.classify(features)
+        results['ai'] = {
+            'classification': ai_result[0],
+            'confidence': round(ai_result[1], 3)
+        }
+        
+        # Nettoyer le fichier temporaire
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        
+        return jsonify({
+            'success': True,
+            'results': results,
+            'features': {
+                'bin_pixel_ratio': round(features.get('bin_pixel_ratio', 0), 3),
+                'sacs_autour_ratio': round(features.get('sacs_autour_ratio', 0), 3),
+                'brightness': round(features.get('brightness', 0), 1),
+                'contrast_level': round(features.get('contrast_level', 0), 1),
+                'color_diversity': round(features.get('color_diversity', 0), 3),
+                'edge_density': round(features.get('edge_density', 0), 3)
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
 
 
 
@@ -955,7 +1172,11 @@ def upload_file():
                     auto_classification = None
                     print(f"👤 Classification utilisateur: {final_classification}")
                 else:
-                    auto_classification, confidence = classifier.classify(features)
+                    result = classifier.classify(features)
+                    if isinstance(result, tuple) and len(result) >= 2:
+                        auto_classification, confidence = result[:2]
+                    else:
+                        auto_classification, confidence = result, 0.5
                     final_classification = auto_classification
                     message = f'Analyse IA: Poubelle {auto_classification} détectée'
                     is_user_annotation = False
@@ -1818,7 +2039,11 @@ def batch_import_images():
                 if not features:
                     raise Exception("Échec de l'extraction des caractéristiques")
                 
-                auto_classification, confidence = classifier.classify(features)
+                result = classifier.classify(features)
+                if isinstance(result, tuple) and len(result) >= 2:
+                    auto_classification, confidence = result[:2]
+                else:
+                    auto_classification, confidence = result, 0.5
 
                 # Générer des coordonnées GPS aléatoires (Uruguay)
                 p1 = (-30.250704671553954, -57.14852536982011)
@@ -2001,7 +2226,11 @@ def reclassify_all_images():
                     raise Exception("L'extraction des caractéristiques a échoué")
 
                 # Re-classifier avec l'algorithme amélioré
-                auto_classification, confidence = classifier.classify(features)
+                result = classifier.classify(features)
+                if isinstance(result, tuple) and len(result) >= 2:
+                    auto_classification, confidence = result[:2]
+                else:
+                    auto_classification, confidence = result, 0.5
 
                 # Mettre à jour l'enregistrement dans la base de données
                 update_cursor.execute('''
@@ -2315,6 +2544,29 @@ def logout_en():
 @app.context_processor
 def inject_is_admin():
     return dict(is_admin=session.get('logged_in', False))
+
+@app.route('/api/admin/delete_all_images', methods=['POST'])
+def admin_delete_all_images():
+    try:
+        # 1. Supprimer toutes les entrées de la BDD
+        conn = sqlite3.connect('binsight.db')
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM images")
+        conn.commit()
+        conn.close()
+
+        # 2. Supprimer tous les fichiers du dossier uploads
+        upload_folder = os.path.join('static', 'uploads')
+        files = glob.glob(os.path.join(upload_folder, '*'))
+        for f in files:
+            try:
+                os.remove(f)
+            except Exception as e:
+                print(f"Erreur suppression fichier {f}: {e}")
+
+        return jsonify({'success': True, 'message': 'Toutes les images ont été supprimées.'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
 
 if __name__ == '__main__':
     print("🚀 Initialisation de l'application...")
