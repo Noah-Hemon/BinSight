@@ -2844,7 +2844,7 @@ function updateMapMarkers(poubelles) {
     console.log(`✅ ${mapMarkers.length} marqueur(s) ajouté(s) à la carte`);
 }
 
-function highlightHotspots(poubelles, radius = 50000, minBins = 3) {
+function highlightHotspots(poubelles, radius = 1000, minBins = 3) {
 
     // 0. Nettoyer les anciens cercles
     hotspotLayers.forEach(l => map.removeLayer(l));
